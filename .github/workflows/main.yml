@@ -66,9 +66,6 @@ jobs:
 
     - name: Compile ${{ matrix.environment }} firmware
       run: platformio run --environment ${{ matrix.environment }}
-    
-    - name: Build ${{ matrix.environment }} filesystem image
-      run: platformio run --environment ${{ matrix.environment }} --target buildfs
 
     - name: Deploy ${{ matrix.environment }}
       if: startsWith(github.ref_type, 'refs/tags/v')
@@ -109,7 +106,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: '3.11'
     
     - name: Install PlatformIO
       run: |
