@@ -409,7 +409,7 @@ def embed_file_name(file_name):
  *
  * @return Pointer to the content.
  */
-extern const char* {base_name}_getFile(size_t* size);
+extern const uint8_t* {base_name}_getFile(size_t* size);
 
 /**
  * @brief Get MIME type for the compressed files.
@@ -440,11 +440,11 @@ extern bool {base_name}_isCompressed();\
 /**
  * @brief Content of {file_name}.
  */
-static const char {base_name}_data[] = {{
+static const uint8_t {base_name}_data[] = {{
 """)
 
     # Write hex data, wrap every 80 characters (about 16 bytes per line)
-    hex_bytes = [f"0x{byte:02X}" for byte in content]
+    hex_bytes = [f"0x{byte:02X}U" for byte in content]
     line = "    "
     for idx, byte in enumerate(hex_bytes):
         if 0 < idx:
@@ -460,7 +460,7 @@ static const char {base_name}_data[] = {{
 
     source_external_functions = []
     source_external_functions.append(f"""\
-extern const char* {base_name}_getFile(size_t* size)
+extern const uint8_t* {base_name}_getFile(size_t* size)
 {{
 if (nullptr != size)
 {{
@@ -543,8 +543,8 @@ extern void {INDEX_FILE_BASE_NAME}_setup(WebServer& server)
     for file in files:
         source_external_functions.append(f"""\
     server.on("/{file}", HTTP_GET, [&server]() {{
-        size_t      size    = 0U;
-        const char* content = {file}_getFile(&size);
+        size_t      size     = 0U;
+        const char* content  = reinterpret_cast<const char*>({file}_getFile(&size));
         const char* mimeType = {file}_getMimeType();
 
         if (true == {file}_isCompressed())
