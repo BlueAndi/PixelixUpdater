@@ -368,12 +368,15 @@ def embed_file_name(file_name):
         file_name (str): The path of the file.
         
     Returns:
-        str: The generated file name.
+        (str, str): The original file name and the generated C++ module base name.
     """
     file_path = os.path.join(SRC_FOLDER, file_name)
     file_extension = file_name.split('.')[-1].lower()
 
-    base_name = os.path.splitext(file_name)[0].replace('.', '_')
+    # Convert file name to CamelCase base name without extension
+    name_without_ext = os.path.splitext(file_name)[0]
+    parts = [p for p in name_without_ext.replace('-', '_').replace('.', '_').split('_') if p]
+    base_name = ''.join(part.capitalize() for part in parts)
     header_filename = base_name + ".h"
     source_filename = base_name + ".cpp"
     header_path = os.path.join(DST_FOLDER, header_filename)
@@ -383,7 +386,7 @@ def embed_file_name(file_name):
     if os.path.exists(header_path) and os.path.exists(source_path):
         # Check by commparing the timestamps of the source files.
         if os.path.getmtime(file_path) <= os.path.getmtime(source_path):
-            return base_name
+            return file_name, base_name
 
     mime_type = MIME_TYPES.get(file_extension, "application/octet-stream")
 
@@ -493,15 +496,15 @@ return {is_compressed};
     header_generator.generate()
     source_generator.generate()
 
-    return base_name
+    return (file_name, base_name)
 
 def generate():
     """Generate C header and source files from files in the embed folder.
     """
-    files = []
+    embed_data = []
 
     for file_name in os.listdir(SRC_FOLDER):
-        files.append(embed_file_name(file_name))
+        embed_data.append(embed_file_name(file_name))
 
     # Genreate module with all compressed files.
     module_header_path = os.path.join(DST_FOLDER, f"{INDEX_FILE_BASE_NAME}.h")
@@ -531,8 +534,9 @@ extern void {INDEX_FILE_BASE_NAME}_setup(WebServer& server);\
 
     source_includes = [f'#include "{INDEX_FILE_BASE_NAME}.h"']
 
-    for file in files:
-        source_includes.append(f'#include "{file}.h"')
+    for data in embed_data:
+        _file_name, base_name = data
+        source_includes.append(f'#include "{base_name}.h"')
 
     source_external_functions = []
     source_external_functions.append(f"""\
@@ -540,14 +544,15 @@ extern void {INDEX_FILE_BASE_NAME}_setup(WebServer& server)
 {{
 """)
 
-    for file in files:
+    for data in embed_data:
+        file_name, base_name = data
         source_external_functions.append(f"""\
-    server.on("/{file}", HTTP_GET, [&server]() {{
+    server.on("/{file_name}", HTTP_GET, [&server]() {{
         size_t      size     = 0U;
-        const char* content  = reinterpret_cast<const char*>({file}_getFile(&size));
-        const char* mimeType = {file}_getMimeType();
+        const char* content  = reinterpret_cast<const char*>({base_name}_getFile(&size));
+        const char* mimeType = {base_name}_getMimeType();
 
-        if (true == {file}_isCompressed())
+        if (true == {base_name}_isCompressed())
         {{
             server.sendHeader("Content-Encoding", "gzip");
         }}
