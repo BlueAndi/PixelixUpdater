@@ -67,7 +67,8 @@ typedef enum
     STATE_STA_CONNECTING, /**< Connecting to WiFi */
     STATE_STA_CONNECTED,  /**< Connected to WiFi */
     STATE_AP_SETUP,       /**< Setup Access Point */
-    STATE_AP_UP           /**< Access Point is up and running */
+    STATE_AP_UP,          /**< Access Point is up and running */
+    STATE_ERROR           /**< Error state */
 
 } State;
 
@@ -88,6 +89,9 @@ static void stateStaConnecting();
 static void stateStaConnected();
 static void stateApSetup();
 static void stateApUp();
+static void stateError();
+static void handleUpload();
+static void handleFileUpload();
 
 /******************************************************************************
  * Variables
@@ -220,6 +224,15 @@ static const uint16_t DNS_PORT = 53U;
  */
 static DNSServer gDnsServer;
 
+/** Firmware binary filename, used for update. */
+static const char* FIRMWARE_FILENAME   = "firmware.bin";
+
+/** Bootloader binary filename, used for update. */
+static const char* BOOTLOADER_FILENAME = "bootloader.bin";
+
+/** Filesystem binary filename, used for update. */
+static const char* FILESYSTEM_FILENAME = "littlefs.bin";
+
 /******************************************************************************
  * External functions
  *****************************************************************************/
@@ -256,7 +269,6 @@ void setup()
     ESP_LOGI(LOG_TAG, "Target: %s", PIO_ENV);
     ESP_LOGI(LOG_TAG, "Version: %s", VERSION);
     ESP_LOGI(LOG_TAG, "Hostname: %s", gSettingsHostname.c_str());
-    ESP_LOGI(LOG_TAG, "WiFi SSID: %s", gSettingsWifiSSID.c_str());
 
     /* Start wifi */
     (void)WiFi.mode(WIFI_STA);
@@ -285,7 +297,7 @@ void loop()
 /**
  * Load settings from preferences to be used by the application.
  * If no settings are found, default values will be used.
- * 
+ *
  * The settings are stored in the preferences storage, which is a key-value
  * storage. The keys are defined by Pixelix!
  */
@@ -300,8 +312,18 @@ static void loadSettings()
      */
     bool status = preferences.begin(PREF_NAMESPACE, true);
 
-    /* Settings found? */
-    if (true == status)
+    /* Settings not found? */
+    if (false == status)
+    {
+        ESP_LOGW(LOG_TAG, "No settings found, using default values.");
+        gSettingsHostname         = DEFAULT_HOSTNAME;
+        gSettingsWifiSSID         = DEFAULT_WIFI_SSID;
+        gSettingsWifiPassphrase   = DEFAULT_WIFI_PASSPHRASE;
+        gSettingsWifiApSSID       = DEFAULT_WIFI_AP_SSID;
+        gSettingsWifiApPassphrase = DEFAULT_WIFI_AP_PASSPHRASE;
+    }
+    /* Settings found. */
+    else
     {
         gSettingsHostname         = preferences.getString(KEY_HOSTNAME, DEFAULT_HOSTNAME);
         gSettingsWifiSSID         = preferences.getString(KEY_WIFI_SSID, DEFAULT_WIFI_SSID);
@@ -389,6 +411,13 @@ static void setupWebServer()
             gWebServer.send(302, "text/plain", "");
         });
 
+    gWebServer.on("/", HTTP_GET, []() {
+        gWebServer.sendHeader("Location", "/index.html");
+        gWebServer.send(302, "text/plain", "");
+    });
+
+    gWebServer.on("/upload.html", HTTP_POST, handleUpload, handleFileUpload);
+
     EmbeddedFiles_setup(gWebServer);
 }
 
@@ -422,6 +451,10 @@ static void stateMachine()
 
     case STATE_AP_UP:
         stateApUp();
+        break;
+
+    case STATE_ERROR:
+        stateError();
         break;
 
     default:
@@ -459,6 +492,7 @@ static void stateStaSetup()
     if (false == WiFi.mode(WIFI_STA))
     {
         ESP_LOGE(LOG_TAG, "Failed to setup WiFi station mode.");
+        gState = STATE_AP_SETUP;
     }
     else
     {
@@ -529,6 +563,7 @@ static void stateApSetup()
     if (false == WiFi.softAPConfig(LOCAL_IP, GATEWAY, SUBNET))
     {
         ESP_LOGE(LOG_TAG, "Failed to configure Access Point.");
+        gState = STATE_ERROR;
     }
     /* Set hostname. Note, wifi must be started, which is done
      * by setting the mode before.
@@ -536,11 +571,13 @@ static void stateApSetup()
     else if (false == WiFi.softAPsetHostname(gSettingsHostname.c_str()))
     {
         ESP_LOGE(LOG_TAG, "Failed to set Access Point hostname.");
+        gState = STATE_ERROR;
     }
     /* Setup wifi access point. */
     else if (false == WiFi.softAP(gSettingsWifiApSSID.c_str(), gSettingsWifiApPassphrase.c_str()))
     {
         ESP_LOGE(LOG_TAG, "Failed to setup Access Point.");
+        gState = STATE_ERROR;
     }
     else
     {
@@ -548,6 +585,7 @@ static void stateApSetup()
         if (false == gDnsServer.start(DNS_PORT, "*", WiFi.softAPIP()))
         {
             ESP_LOGE(LOG_TAG, "Failed to start DNS server.");
+            gState = STATE_ERROR;
         }
         else
         {
@@ -569,4 +607,127 @@ static void stateApSetup()
 static void stateApUp()
 {
     /* Nothing to do. */
+}
+
+/**
+ * State machine function for the error state.
+ * This state is entered when an error occurs, e.g. WiFi connection failed.
+ */
+static void stateError()
+{
+    /* Nothing to do. */
+}
+
+/**
+ * Handle upload requests.
+ * This function is called when a file is uploaded to the web server.
+ * It sends a response back to the client indicating that the upload was successful.
+ */
+static void handleUpload()
+{
+    gWebServer.send(200, "text/plain", "File upload successful.");
+}
+
+/**
+ * Handle file upload requests.
+ * This function is called when a file is uploaded to the web server.
+ * It logs the upload progress and sends a response back to the client.
+ */
+static void handleFileUpload()
+{
+    HTTPUpload& upload = gWebServer.upload();
+
+    if (UPLOAD_FILE_START == upload.status)
+    {
+        int    cmd      = U_FLASH;
+        size_t fileSize = UPDATE_SIZE_UNKNOWN;
+        String headerXFileSize;
+
+        /* If there is a pending upload, abort it. */
+        if (true == Update.isRunning())
+        {
+            Update.abort();
+            ESP_LOGW(LOG_TAG, "Aborted pending upload.");
+        }
+
+        /* Upload firmware, bootloader or filesystem? */
+        if (upload.filename == FIRMWARE_FILENAME)
+        {
+            headerXFileSize = gWebServer.header("X-File-Size-Firmware");
+            cmd             = U_FLASH;
+        }
+        else if (upload.filename == BOOTLOADER_FILENAME)
+        {
+            headerXFileSize = gWebServer.header("X-File-Size-Bootloader");
+            cmd             = U_FLASH;
+        }
+        else if (upload.filename == FILESYSTEM_FILENAME)
+        {
+            headerXFileSize = gWebServer.header("X-File-Size-Filesystem");
+            cmd             = U_SPIFFS;
+        }
+        else
+        {
+            /* Unknown. */
+            ;
+        }
+
+        /* File size available? */
+        if (false == headerXFileSize.isEmpty())
+        {
+            int32_t headerXFileSizeValue = headerXFileSize.toInt();
+
+            if (0 < headerXFileSizeValue)
+            {
+                fileSize = static_cast<size_t>(headerXFileSizeValue);
+
+                ESP_LOGI(LOG_TAG, "File size from header: %u bytes", fileSize);
+            }
+        }
+
+        if (false == Update.begin(fileSize, cmd))
+        {
+            ESP_LOGE(LOG_TAG, "Failed to begin file upload: %s", upload.filename.c_str());
+            gWebServer.send(500, "text/plain", "Failed to begin file upload.");
+        }
+        else
+        {
+            ESP_LOGI(LOG_TAG, "File upload started: %s", upload.filename.c_str());
+        }
+    }
+    else if (UPLOAD_FILE_WRITE == upload.status)
+    {
+        if (upload.currentSize != Update.write(upload.buf, upload.currentSize))
+        {
+            ESP_LOGE(LOG_TAG, "Failed to write file upload: %s", upload.filename.c_str());
+            ESP_LOGE(LOG_TAG, "Upload error: %s", Update.errorString());
+            Update.abort();
+            gWebServer.send(500, "text/plain", "Failed to write file upload.");
+        }
+        else
+        {
+            ESP_LOGI(LOG_TAG, "File upload progress: %u bytes", upload.currentSize);
+        }
+    }
+    else if (UPLOAD_FILE_END == upload.status)
+    {
+        if (false == Update.end())
+        {
+            ESP_LOGE(LOG_TAG, "Failed to end file upload: %s", upload.filename.c_str());
+            ESP_LOGE(LOG_TAG, "Upload error: %s", Update.errorString());
+            Update.abort();
+            gWebServer.send(500, "text/plain", "Failed to end file upload.");
+        }
+        else
+        {
+            ESP_LOGI(LOG_TAG, "File upload finished: %s (%u bytes)", upload.filename.c_str(), upload.totalSize);
+            gWebServer.send(200, "text/plain", "File uploaded successfully.");
+        }
+    }
+    else
+    {
+        ESP_LOGI(LOG_TAG, "File upload aborted: %s", upload.filename.c_str());
+        Update.abort();
+        gWebServer.send(500, "text/plain", "File upload aborted.");
+    }
 }
