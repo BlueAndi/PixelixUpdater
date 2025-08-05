@@ -159,7 +159,7 @@ static const char* DEFAULT_WIFI_PASSPHRASE    = "";
 static const char* DEFAULT_WIFI_AP_SSID       = "pixelix";
 
 /** Wifi Access Point passphrase default value */
-static const char* DEFAULT_WIFI_AP_PASSPHRASE = "Luke, I am your father.";
+static const char* DEFAULT_WIFI_AP_PASSPHRASE = "12345678";
 
 /**
  * The hostname of the device.
@@ -269,12 +269,14 @@ void setup()
     ESP_LOGI(LOG_TAG, "Target: %s", PIO_ENV);
     ESP_LOGI(LOG_TAG, "Version: %s", VERSION);
     ESP_LOGI(LOG_TAG, "Hostname: %s", gSettingsHostname.c_str());
+    ESP_LOGI(LOG_TAG, "Partition: Factory");
 
     /* Start wifi */
     (void)WiFi.mode(WIFI_STA);
 
     setupOta();
     setupWebServer();
+    setAppPartition0Active();
 }
 
 /**

@@ -152,7 +152,7 @@ static const char* DEFAULT_WIFI_PASSPHRASE    = "";
 static const char* DEFAULT_WIFI_AP_SSID       = "pixelix";
 
 /** Wifi Access Point passphrase default value */
-static const char* DEFAULT_WIFI_AP_PASSPHRASE = "Luke, I am your father.";
+static const char* DEFAULT_WIFI_AP_PASSPHRASE = "12345678";
 
 /**
  * The hostname of the device.
@@ -263,6 +263,7 @@ void setup()
     ESP_LOGI(LOG_TAG, "Version: %s", VERSION);
     ESP_LOGI(LOG_TAG, "Hostname: %s", gSettingsHostname.c_str());
     ESP_LOGI(LOG_TAG, "WiFi SSID: %s", gSettingsWifiSSID.c_str());
+    ESP_LOGI(LOG_TAG, "Partition: App");
 
     /* Start wifi */
     (void)WiFi.mode(WIFI_STA);
@@ -305,8 +306,18 @@ static void loadSettings()
      */
     bool status = preferences.begin(PREF_NAMESPACE, true);
 
-    /* Settings found? */
-    if (true == status)
+    /* Settings not found? */
+    if (false == status)
+    {
+        ESP_LOGW(LOG_TAG, "No settings found, using default values.");
+        gSettingsHostname         = DEFAULT_HOSTNAME;
+        gSettingsWifiSSID         = DEFAULT_WIFI_SSID;
+        gSettingsWifiPassphrase   = DEFAULT_WIFI_PASSPHRASE;
+        gSettingsWifiApSSID       = DEFAULT_WIFI_AP_SSID;
+        gSettingsWifiApPassphrase = DEFAULT_WIFI_AP_PASSPHRASE;
+    }
+    /* Settings found. */
+    else
     {
         gSettingsHostname         = preferences.getString(KEY_HOSTNAME, DEFAULT_HOSTNAME);
         gSettingsWifiSSID         = preferences.getString(KEY_WIFI_SSID, DEFAULT_WIFI_SSID);
