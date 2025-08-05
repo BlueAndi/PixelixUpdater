@@ -24,7 +24,7 @@ The idea raised up to use just one application partition and a small factory par
 
 ## How It Works
 
-TODO
+Pixelix is flashed to the app partition. Und normal circumstances this partition is active. However, if an OTA update needs to be done the user can trigger a switch to the factory partition via the webinterface. The device will then reboot and start in the factory partition. After a few seconds the website will reload and change to the webinterface of the PixelixUpdater. The user can now upload their binaries. If the upload finishes successfully the device will reboot and start again in the app partition.
 
 ## Used Libraries
 
