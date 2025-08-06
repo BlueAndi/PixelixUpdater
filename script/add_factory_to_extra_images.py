@@ -94,7 +94,7 @@ def get_partition_table(env):
 ################################################################################
 
 if(FACTORY_PROGNAME != ""):
-    factory_image = os.path.join(project_dir, f"{FACTORY_PROGNAME}.bin")
+    factory_image = os.path.join(PROJECT_DIR, f"{FACTORY_PROGNAME}.bin")
     partition_table = get_partition_table(env)
     factory_offset = 0
 
