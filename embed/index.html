@@ -51,15 +51,13 @@
 
                 <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item" role="presentation"><a class="nav-link active" id="update-tab" data-bs-toggle="tab" role="tab" href="#update"  aria-controls="update" aria-selected="true">Update</a></li>
-                    <li class="nav-item" role="presentation"><a class="nav-link" id="backup-tab" data-bs-toggle="tab" role="tab" href="#backup" aria-controls="backup" aria-selected="false">Backup</a></li>
-                    <li class="nav-item" role="presentation"><a class="nav-link" id="restore-tab" data-bs-toggle="tab" role="tab" href="#restore" aria-controls="restore" aria-selected="false">Restore</a></li>
                 </ul>
 
                 <div class="tab-content" id="myTabContent">
 
                     <div class="tab-pane fade active show" id="update" role="tabpanel" aria-labelledby="update-tab">
                         <br />
-                        <p>Upload <u>firmware.bin</u> and <u>bootloader.bin</u> file for software update or <u>littlefs.bin</u> for updating the filesystem.</p>
+                        <p>Upload <u>firmware.bin</u> for software update or <u>littlefs.bin</u> for updating the filesystem.</p>
                         <div class="alert alert-warning" role="alert">
                             A filesystem update might cause a loss of all configuration data on the filesystem. Make sure you have a backup of your configuration before updating it.
                         </div>
@@ -74,24 +72,6 @@
                         </div>
                         <div class="progress">
                             <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                        </div>
-                    </div>
-
-                    <div class="tab-pane fade" id="backup" role="tabpanel" aria-labelledby="backup-tab">
-                        <br />
-                        <p>Backup the configuration.</p>
-                        <button class="btn btn-light" id="buttonBackup" type="button" onclick="backup();">Save As</button>
-                    </div>
-
-                    <div class="tab-pane fade" id="restore" role="tabpanel" aria-labelledby="restore-tab">
-                        <br />
-                        <p>Restore the configuration.</p>
-                        <div class="input-group">
-                            <input type="file" class="form-control" id="backupFile" accept=".zip">
-                            <button class="btn btn-light" type="button" onclick="restore();">Restore</button>
-                        </div>
-                        <div class="progress">
-                            <div id="progressBarRestore" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                         </div>
                     </div>
 
@@ -115,19 +95,9 @@
         <!-- Pixelix utilities -->
         <script type="text/javascript" src="utils.js"></script>
         <script type="text/javascript" src="dialog.js"></script>
-        <!-- Pixelix REST API -->
-        <script type="text/javascript" src="rest.js"></script>
-        <!-- Zip library-->
-        <script type="text/javascript" src="jszip.min.js"></script>
-        <script type="text/javascript" src="jszip-utils.min.js"></script>
-        <script type="text/javascript" src="FileSaver.min.js"></script>
 
         <!-- Custom javascript -->
         <script>
-
-            var restClient  = new pixelix.rest.Client();
-            var zip         = new JSZip();
-            var hostname    = "~HOSTNAME~";
 
             /* Disable all UI elements. */
             function disableUI() {
@@ -170,7 +140,7 @@
                 /* Filesystem shall always be updated first!
                  * Otherwise the Home Assistant MQTT discovery feature will stay enabled
                  */
-                 for(index = 0; index < fileCnt; ++index) {
+                for(index = 0; index < fileCnt; ++index) {
                     file = document.getElementById("inputFile").files[index];
 
                     if ("littlefs.bin" === file.name) {
@@ -181,8 +151,7 @@
                 for(index = 0; index < fileCnt; ++index) {
                     file = document.getElementById("inputFile").files[index];
 
-                    if (("firmware.bin" === file.name) ||
-                        ("bootloader.bin" === file.name)) {
+                    if ("firmware.bin" === file.name) {
 
                         files.push(file);
                     }
@@ -203,8 +172,6 @@
 
                         if ("firmware.bin" === files[index].name) {
                             fileHeaders["X-File-Size-Firmware"] = files[index].size;
-                        } else if ("bootloader.bin" === files[index].name) {
-                            fileHeaders["X-File-Size-Bootloader"] = files[index].size;
                         } else if ("littlefs.bin" === files[index].name) {
                             fileHeaders["X-File-Size-Filesystem"] = files[index].size;
                         }
@@ -226,165 +193,14 @@
                 }
             }
 
-            function getConfigurationFiles() {
-                return restClient.listAllFiles("/configuration").then(function(items) {
-                    fileUrlList = [];
-
-                    for(index = 0; index < items.length; ++index) {
-                        fileUrlList.push({
-                            name: items[index].name,
-                            url: "/rest/api/v1/fs/file?path=" + encodeURIComponent(items[index].name)
-                        });
-                    }
-
-                    return Promise.resolve(fileUrlList);
-                });
-            }
-
-            function urlToPromise(url) {
-                return new Promise(function(resolve, reject) {
-
-                    JSZipUtils.getBinaryContent(url, function (err, data) {
-                        if(err) {
-                            reject(err);
-                        } else {
-                            resolve(data);
-                        }
-                    });
-                });
-            }
-
-            function downloadWithBlob(fileUrlList) {
-                return new Promise(function(resolve, reject) {
-                    fileUrlList.forEach(function(fileUrl, index){
-                        var filenameOnly = fileUrl.name.substring(fileUrl.name.lastIndexOf('/') + 1);
-                        zip.file(filenameOnly, urlToPromise(fileUrl.url), { binary:true });
-                    });
-                    zip.generateAsync({ type:'blob' }).then(function(content) {
-                        var date = new Date();
-                        var day = date.getDate();
-                        day = ((day < 10) ? '0' : '') + day;
-                        var month = date.getMonth() + 1;
-                        month = ((month < 10) ? '0' : '') + month;
-                        var year = date.getFullYear();
-                        var hour = date.getHours();
-                        hour = ((hour < 10) ? '0' : '') + hour;
-                        var minutes = date.getMinutes();
-                        minutes = ((minutes < 10) ? '0' : '') + minutes;
-                        var seconds = date.getSeconds();
-                        seconds = ((seconds < 10) ? '0' : '') + seconds;
-                        var filename = hostname + "_" + year + month + day + "_" + hour + minutes + seconds + "_backup.zip";
-                        saveAs(content, filename);
-                        resolve();
-                    });
-                });
-            }
-
-            function backup() {
-                dialog.show("Backup", "<p>Please wait, backup is in progress.</p>").then(function() {
-                    return getConfigurationFiles();
-                }).then(function(fileUrlList) {
-                    return downloadWithBlob(fileUrlList);
-                }).then(function() {
-                    dialog.showInfo("<p>Backup successful.</p>");
-                }).catch(function() {
-                    dialog.showError("<p>Backup failed.</p>");
-                });
-            }
-
-            function restore() {
-                var elem = document.getElementById("backupFile");
-                var progress = 0;
-
-                updateProgressBar("progressBarRestore", progress);
-
-                if (0 === elem.files.length) {
-
-                    dialog.showWarning("<p>No file selected.</p>");
-
-                } else {
-                    var file        = elem.files[0];
-                    var fileSize    = file.size;
-
-                    if (false === file.name.endsWith(".zip")) {
-
-                        dialog.showError("<p>Unknown file: " + file.name + "</p>");
-
-                    } else {
-
-                        dialog.show("Restore", "<p>Please wait, restore is in progress.</p>").then(function() {
-                            return zip.loadAsync(file);
-                        }).then(function(zipObj) {
-                            return new Promise(function(resolve, reject) {
-                                var files = Object.keys(zipObj.files);
-                                var progressPerFile = (90 - progress) / files.length;
-                                var promiseChain = Promise.resolve();
-    
-                                files.forEach(function(filename) {
-                                    var fileType = "text";
-                                    var mimeType = "text/plain";
-    
-                                    if (true === filename.endsWith(".json")) {
-                                        fileType = "text";
-                                        mimeType = "text/plain";
-                                    } else if ((true === filename.endsWith(".bmp")) ||
-                                               (true === filename.endsWith(".gif"))) {
-    
-                                        if (JSZip.support.blob) {
-                                            fileType = "blob";
-                                            mimeType = "application/octet-stream";
-                                        } else if (JSZip.support.uint8array) {
-                                            fileType = "uint8array";
-                                            mimeType = "application/octet-stream";
-                                        }
-                                    }
-    
-                                    promiseChain = promiseChain.then(function() {
-                                        return zipObj.file(filename).async(fileType).then(function(data) {
-                                            progress += progressPerFile;
-                                            updateProgressBar("progressBarRestore", progress);
-        
-                                            return restClient.writeFile("/configuration/" + filename, data, mimeType);
-                                        }.bind(zipObj))
-                                    }.bind(zipObj));
-                                });
-                                
-                                return promiseChain.then(function() {
-                                    resolve();
-                                });
-                            });
-                        }).then(function() {
-                            progress = 90;
-                            updateProgressBar("progressBarRestore", progress);
-                        }).then(function() {
-                            return restClient.restart();
-                        }).then(function() {
-                            progress = 100;
-                            updateProgressBar("progressBarRestore", progress);
-
-                            return dialog.showInfo("<p>Restart performed to apply restored configuration.</p>");
-                        }).catch(function() {
-                            dialog.showError("<p>Restore failed.</p>");
-                        });
-                    }
-                }
-            }
-
             /* Execute after page is ready. */
             $(document).ready(function() {
 
                 $("#inputFile").on("change", function() {
                     var fileName = $(this).val().split("\\").pop();
-                    $(this).next(".custom-file-label").addClass("selected").html(fileName);
+                     $(this).next(".custom-file-label").addClass("selected").html(fileName);
 
                     updateProgressBar("progressBar", 0);
-                });
-
-                $("#backupFile").on("change", function() {
-                    var fileName = $(this).val().split("\\").pop();
-                    $(this).next(".custom-file-label").addClass("selected").html(fileName);
-
-                    updateProgressBar("progressBarRestore", 0);
                 });
             });
         </script>

@@ -152,7 +152,7 @@ static const char* DEFAULT_WIFI_PASSPHRASE    = "";
 static const char* DEFAULT_WIFI_AP_SSID       = "pixelix";
 
 /** Wifi Access Point passphrase default value */
-static const char* DEFAULT_WIFI_AP_PASSPHRASE = "12345678";
+static const char* DEFAULT_WIFI_AP_PASSPHRASE = "123456789";
 
 /**
  * The hostname of the device.
