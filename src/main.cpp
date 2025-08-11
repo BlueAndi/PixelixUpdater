@@ -164,27 +164,27 @@ static const char* DEFAULT_WIFI_AP_PASSPHRASE = "Luke, I am your father.";
 /**
  * The hostname of the device.
  */
-static String gSettingsHostname;
+static String gSettingsHostname = DEFAULT_HOSTNAME;
 
 /**
  * WiFi SSID.
  */
-static String gSettingsWifiSSID;
+static String gSettingsWifiSSID = DEFAULT_WIFI_SSID;
 
 /**
  * WiFi passphrase.
  */
-static String gSettingsWifiPassphrase;
+static String gSettingsWifiPassphrase = DEFAULT_WIFI_PASSPHRASE;
 
 /**
  * WiFi Access Point SSID.
  */
-static String gSettingsWifiApSSID;
+static String gSettingsWifiApSSID = DEFAULT_WIFI_AP_SSID;
 
 /**
  * WiFi Access Point passphrase.
  */
-static String gSettingsWifiApPassphrase;
+static String gSettingsWifiApPassphrase = DEFAULT_WIFI_AP_PASSPHRASE;
 
 /**
  * Web server instance.
@@ -227,11 +227,14 @@ static DNSServer gDnsServer;
 /** Firmware binary filename, used for update. */
 static const char* FIRMWARE_FILENAME   = "firmware.bin";
 
-/** Bootloader binary filename, used for update. */
-static const char* BOOTLOADER_FILENAME = "bootloader.bin";
-
 /** Filesystem binary filename, used for update. */
 static const char* FILESYSTEM_FILENAME = "littlefs.bin";
+
+/** Firmware binary size HTTP request header. */
+static const char* FIRMWARE_SIZE_HEADER = "X-File-Size-Firmware";
+
+/** Filesystem binary size HTTP request header.  */
+static const char* FILESYSTEM_SIZE_HEADER = "X-File-Size-Filesystem";
 
 /******************************************************************************
  * External functions
@@ -269,12 +272,14 @@ void setup()
     ESP_LOGI(LOG_TAG, "Target: %s", PIO_ENV);
     ESP_LOGI(LOG_TAG, "Version: %s", VERSION);
     ESP_LOGI(LOG_TAG, "Hostname: %s", gSettingsHostname.c_str());
+    ESP_LOGI(LOG_TAG, "Partition: Factory");
 
     /* Start wifi */
     (void)WiFi.mode(WIFI_STA);
 
     setupOta();
     setupWebServer();
+    setAppPartition0Active();
 }
 
 /**
@@ -401,8 +406,14 @@ static void setupOta()
  */
 static void setupWebServer()
 {
+    const char *headerKeys[] = {FIRMWARE_SIZE_HEADER, FILESYSTEM_SIZE_HEADER};
+    size_t keyCount = sizeof(headerKeys) / sizeof(headerKeys[0]);
+
     /* Start the web server, before configuration! */
     gWebServer.begin();
+
+    /* Webserver only keeps headers that are specified through collectHeaders(). */
+    gWebServer.collectHeaders(headerKeys, keyCount);
 
     /* Configure web server */
     gWebServer.onNotFound(
@@ -650,15 +661,10 @@ static void handleFileUpload()
             ESP_LOGW(LOG_TAG, "Aborted pending upload.");
         }
 
-        /* Upload firmware, bootloader or filesystem? */
+        /* Upload firmware or filesystem? */
         if (upload.filename == FIRMWARE_FILENAME)
         {
             headerXFileSize = gWebServer.header("X-File-Size-Firmware");
-            cmd             = U_FLASH;
-        }
-        else if (upload.filename == BOOTLOADER_FILENAME)
-        {
-            headerXFileSize = gWebServer.header("X-File-Size-Bootloader");
             cmd             = U_FLASH;
         }
         else if (upload.filename == FILESYSTEM_FILENAME)
@@ -721,7 +727,6 @@ static void handleFileUpload()
         else
         {
             ESP_LOGI(LOG_TAG, "File upload finished: %s (%u bytes)", upload.filename.c_str(), upload.totalSize);
-            gWebServer.send(200, "text/plain", "File uploaded successfully.");
         }
     }
     else
