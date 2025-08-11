@@ -197,7 +197,7 @@
             $(document).ready(function() {
                 $("#inputFile").on("change", function() {
                     var fileName = $(this).val().split("\\").pop();
-                     $(this).next(".custom-file-label").addClass("selected").html(fileName);
+                    $(this).next(".custom-file-label").addClass("selected").html(fileName);
 
                     updateProgressBar("progressBar", 0);
                 });
