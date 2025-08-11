@@ -62,7 +62,7 @@ def get_partition_table(env):
         env: The environment object containing project and build directories.
     
     Returns:
-        A list of partitions defined in the partition table CSV file.
+        List[Dict[str, str]]: A list of partitions defined in the partition table CSV file.
     """
     partition_table = []
     partition_table_file_name = env.get("PARTITIONS_TABLE_CSV")

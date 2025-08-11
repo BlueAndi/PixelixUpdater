@@ -159,32 +159,32 @@ static const char* DEFAULT_WIFI_PASSPHRASE    = "";
 static const char* DEFAULT_WIFI_AP_SSID       = "pixelix";
 
 /** Wifi Access Point passphrase default value */
-static const char* DEFAULT_WIFI_AP_PASSPHRASE = "123456789";
+static const char* DEFAULT_WIFI_AP_PASSPHRASE = "Luke, I am your father.";
 
 /**
  * The hostname of the device.
  */
-static String gSettingsHostname;
+static String gSettingsHostname = DEFAULT_HOSTNAME;
 
 /**
  * WiFi SSID.
  */
-static String gSettingsWifiSSID;
+static String gSettingsWifiSSID = DEFAULT_WIFI_SSID;
 
 /**
  * WiFi passphrase.
  */
-static String gSettingsWifiPassphrase;
+static String gSettingsWifiPassphrase = DEFAULT_WIFI_PASSPHRASE;
 
 /**
  * WiFi Access Point SSID.
  */
-static String gSettingsWifiApSSID;
+static String gSettingsWifiApSSID = DEFAULT_WIFI_AP_SSID;
 
 /**
  * WiFi Access Point passphrase.
  */
-static String gSettingsWifiApPassphrase;
+static String gSettingsWifiApPassphrase = DEFAULT_WIFI_AP_PASSPHRASE;
 
 /**
  * Web server instance.

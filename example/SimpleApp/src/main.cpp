@@ -152,32 +152,32 @@ static const char* DEFAULT_WIFI_PASSPHRASE    = "";
 static const char* DEFAULT_WIFI_AP_SSID       = "pixelix";
 
 /** Wifi Access Point passphrase default value */
-static const char* DEFAULT_WIFI_AP_PASSPHRASE = "123456789";
+static const char* DEFAULT_WIFI_AP_PASSPHRASE = "Luke, I am your father.";
 
 /**
  * The hostname of the device.
  */
-static String gSettingsHostname;
+static String gSettingsHostname = DEFAULT_HOSTNAME;
 
 /**
  * WiFi SSID.
  */
-static String gSettingsWifiSSID;
+static String gSettingsWifiSSID = DEFAULT_WIFI_SSID;
 
 /**
  * WiFi passphrase.
  */
-static String gSettingsWifiPassphrase;
+static String gSettingsWifiPassphrase = DEFAULT_WIFI_PASSPHRASE;
 
 /**
  * WiFi Access Point SSID.
  */
-static String gSettingsWifiApSSID;
+static String gSettingsWifiApSSID = DEFAULT_WIFI_AP_SSID;
 
 /**
  * WiFi Access Point passphrase.
  */
-static String gSettingsWifiApPassphrase;
+static String gSettingsWifiApPassphrase = DEFAULT_WIFI_AP_PASSPHRASE;
 
 /**
  * Web server instance.
@@ -219,9 +219,6 @@ static DNSServer gDnsServer;
 
 /** Firmware binary filename, used for update. */
 static const char* FIRMWARE_FILENAME   = "firmware.bin";
-
-/** Bootloader binary filename, used for update. */
-static const char* BOOTLOADER_FILENAME = "bootloader.bin";
 
 /** Filesystem binary filename, used for update. */
 static const char* FILESYSTEM_FILENAME = "littlefs.bin";
@@ -310,11 +307,6 @@ static void loadSettings()
     if (false == status)
     {
         ESP_LOGW(LOG_TAG, "No settings found, using default values.");
-        gSettingsHostname         = DEFAULT_HOSTNAME;
-        gSettingsWifiSSID         = DEFAULT_WIFI_SSID;
-        gSettingsWifiPassphrase   = DEFAULT_WIFI_PASSPHRASE;
-        gSettingsWifiApSSID       = DEFAULT_WIFI_AP_SSID;
-        gSettingsWifiApPassphrase = DEFAULT_WIFI_AP_PASSPHRASE;
     }
     /* Settings found. */
     else

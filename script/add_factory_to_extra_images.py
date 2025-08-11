@@ -34,14 +34,15 @@ Must be done before building the firmware.
 
 import os
 import sys
-Import("env") 
+Import("env") # pylint: disable=undefined-variable
 
 ################################################################################
 # Variables
 ################################################################################ 
 
-FACTORY_PROGNAME = env.GetProjectOption("custom_factory_name", "")
-PROJECT_DIR = env.subst("$PROJECT_DIR")
+FACTORY_PARTITION_NAME = "factory"
+FACTORY_BINARY_NAME = env.GetProjectOption("custom_factory_name", "") # pylint: disable=undefined-variable
+PROJECT_DIR = env.subst("$PROJECT_DIR") # pylint: disable=undefined-variable
 
 ################################################################################
 # Classes
@@ -51,7 +52,7 @@ PROJECT_DIR = env.subst("$PROJECT_DIR")
 # Functions
 ################################################################################
 
-def get_partition_table(env):
+def get_partition_table(env): # pylint: disable=undefined-variable
     """
     Get the partition table from the environment.
     
@@ -59,7 +60,7 @@ def get_partition_table(env):
         env: The environment object containing project and build directories.
     
     Returns:
-        A list of partitions defined in the partition table CSV file.
+        List[Dict[str, str]]: A list of partitions defined in the partition table CSV file.
     """
     partition_table = []
     partition_table_file_name = PROJECT_DIR + "/" + env.BoardConfig().get("build.partitions")
@@ -93,23 +94,23 @@ def get_partition_table(env):
 # Main
 ################################################################################
 
-if(FACTORY_PROGNAME != ""):
-    factory_image = os.path.join(PROJECT_DIR, f"{FACTORY_PROGNAME}.bin")
-    partition_table = get_partition_table(env)
+if FACTORY_BINARY_NAME != "":
+    factory_image = os.path.join(PROJECT_DIR, f"{FACTORY_BINARY_NAME}.bin")
+    partition_table = get_partition_table(env) # pylint: disable=undefined-variable
     factory_offset = 0
 
     # Get the offset for the factory image from the partition table.
     for partition in partition_table:
-        if partition["name"] == FACTORY_PROGNAME:
+        if partition["name"] == FACTORY_PARTITION_NAME:
             factory_offset = partition["offset"]
 
     if factory_offset != 0:
-        env.Append(
+        env.Append( # pylint: disable=undefined-variable
             FLASH_EXTRA_IMAGES=[
                 (f"{factory_offset}", f"{factory_image}")
             ]
         )
     else:
-        print(f"No offset found for partition: {FACTORY_PROGNAME}")
+        print(f"No offset found for partition: {FACTORY_PARTITION_NAME}")
 else:
-    print("No factory partition set in platform.ini!")
+    print("No factory binary set in platform.ini!")
