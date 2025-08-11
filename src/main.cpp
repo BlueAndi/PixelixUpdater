@@ -512,8 +512,8 @@ static void stateStaSetup()
 }
 
 /**
- * State machine function for the connected state.
- * This state is entered when the device is connected to the WiFi network.
+ * State machine function for the connecting state.
+ * This state is entered when the wifi station was setup successfully.
  */
 static void stateStaConnecting()
 {
