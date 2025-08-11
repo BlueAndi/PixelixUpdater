@@ -279,7 +279,6 @@ void setup()
 
     setupOta();
     setupWebServer();
-    setAppPartition0Active();
 }
 
 /**
@@ -425,6 +424,12 @@ static void setupWebServer()
     gWebServer.on("/", HTTP_GET, []() {
         gWebServer.sendHeader("Location", "/index.html");
         gWebServer.send(302, "text/plain", "");
+    });
+
+    gWebServer.on("/change-partition", HTTP_GET, []() {
+        gWebServer.send(200, "text/plain", "Restart initiated!");
+        setAppPartition0Active();
+        ESP.restart();
     });
 
     gWebServer.on("/upload.html", HTTP_POST, handleUpload, handleFileUpload);

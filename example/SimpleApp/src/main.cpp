@@ -37,11 +37,12 @@
 #include <WebServer.h>
 #include <WiFi.h>
 #include <DNSServer.h>
-#include <LittleFS.h>
 
 #include <esp_log.h>
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
+
+#include "EmbeddedFiles.h"
 
 /******************************************************************************
  * Macros
@@ -113,11 +114,6 @@ static const uint32_t HWCDC_TX_TIMEOUT = 4U;
  * Tag for logging purposes.
  */
 static const char* LOG_TAG                    = "main";
-
-/**
- * OTA password.
- */
-static const char* OTA_PASSWORD               = "maytheforcebewithyou";
 
 /**
  * SettingsService namespace used for preferences.
@@ -217,12 +213,6 @@ static const uint16_t DNS_PORT = 53U;
  */
 static DNSServer gDnsServer;
 
-/** Firmware binary filename, used for update. */
-static const char* FIRMWARE_FILENAME   = "firmware.bin";
-
-/** Filesystem binary filename, used for update. */
-static const char* FILESYSTEM_FILENAME = "littlefs.bin";
-
 /******************************************************************************
  * External functions
  *****************************************************************************/
@@ -266,7 +256,6 @@ void setup()
     (void)WiFi.mode(WIFI_STA);
 
     setupWebServer();
-    setFactoryPartitionActive();
 }
 
 /**
@@ -391,20 +380,18 @@ static void setupWebServer()
             gWebServer.send(302, "text/plain", "");
         });
 
-    /* Provide index.html from filesystem. */
     gWebServer.on("/", HTTP_GET, []() {
-        File file = LittleFS.open("/index.html", "r");
-
-        if (false == file)
-        {
-            gWebServer.send(404, "text/plain", "File not found");
-        }
-        else
-        {
-            gWebServer.streamFile(file, "text/html");
-            file.close();
-        }
+        gWebServer.sendHeader("Location", "/index.html");
+        gWebServer.send(302, "text/plain", "");
     });
+
+    gWebServer.on("/change-partition", HTTP_GET, []() {
+        gWebServer.send(200, "text/plain", "Restart initiated!");
+        setFactoryPartitionActive();
+        ESP.restart();
+    });
+
+    EmbeddedFiles_setup(gWebServer);
 }
 
 /**

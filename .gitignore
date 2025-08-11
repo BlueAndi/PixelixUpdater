@@ -5,3 +5,4 @@
 .vscode/ipch
 src/generated
 example/SimpleApp/factory.bin
+example/SimpleApp/src/generated
