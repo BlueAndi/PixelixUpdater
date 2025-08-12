@@ -416,6 +416,7 @@ static void setupWebServer()
     gWebServer.on("/change-partition", HTTP_GET, []() {
         gWebServer.send(200, "text/plain", "Restart initiated!");
         setFactoryPartitionActive();
+        delay(1000);
         ESP.restart();
     });
 
