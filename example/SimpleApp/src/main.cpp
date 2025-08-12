@@ -37,12 +37,11 @@
 #include <WebServer.h>
 #include <WiFi.h>
 #include <DNSServer.h>
+#include <LittleFS.h>
 
 #include <esp_log.h>
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
-
-#include "EmbeddedFiles.h"
 
 /******************************************************************************
  * Macros
@@ -51,6 +50,9 @@
 #ifndef CONFIG_ESP_LOG_SEVERITY
 #define CONFIG_ESP_LOG_SEVERITY (ESP_LOG_INFO)
 #endif /* CONFIG_ESP_LOG_SEVERITY */
+
+/** Get number of array elements. */
+#define UTIL_ARRAY_NUM(__arr) (sizeof(__arr) / sizeof((__arr)[0]))
 
 /******************************************************************************
  * Types and Classes
@@ -153,27 +155,27 @@ static const char* DEFAULT_WIFI_AP_PASSPHRASE = "Luke, I am your father.";
 /**
  * The hostname of the device.
  */
-static String gSettingsHostname = DEFAULT_HOSTNAME;
+static String gSettingsHostname               = DEFAULT_HOSTNAME;
 
 /**
  * WiFi SSID.
  */
-static String gSettingsWifiSSID = DEFAULT_WIFI_SSID;
+static String gSettingsWifiSSID               = DEFAULT_WIFI_SSID;
 
 /**
  * WiFi passphrase.
  */
-static String gSettingsWifiPassphrase = DEFAULT_WIFI_PASSPHRASE;
+static String gSettingsWifiPassphrase         = DEFAULT_WIFI_PASSPHRASE;
 
 /**
  * WiFi Access Point SSID.
  */
-static String gSettingsWifiApSSID = DEFAULT_WIFI_AP_SSID;
+static String gSettingsWifiApSSID             = DEFAULT_WIFI_AP_SSID;
 
 /**
  * WiFi Access Point passphrase.
  */
-static String gSettingsWifiApPassphrase = DEFAULT_WIFI_AP_PASSPHRASE;
+static String gSettingsWifiApPassphrase       = DEFAULT_WIFI_AP_PASSPHRASE;
 
 /**
  * Web server instance.
@@ -213,6 +215,16 @@ static const uint16_t DNS_PORT = 53U;
  */
 static DNSServer gDnsServer;
 
+/**
+ * Static routes to files.
+ */
+static const char* gStaticRoutes[] = {
+    "/favicon.png",
+    "/images/",
+    "/js/",
+    "/style/"
+};
+
 /******************************************************************************
  * External functions
  *****************************************************************************/
@@ -239,6 +251,11 @@ void setup()
 
     /* Set severity for esp logging system. */
     esp_log_level_set("*", CONFIG_ESP_LOG_SEVERITY);
+
+    if (false == LittleFS.begin())
+    {
+        Serial.println("LittleFS Mount Failed\n");
+    }
 
     /* Load settings from the persistent storage. */
     loadSettings();
@@ -370,6 +387,8 @@ static void setFactoryPartitionActive()
  */
 static void setupWebServer()
 {
+    uint8_t idx = 0U;
+
     /* Start the web server, before configuration! */
     gWebServer.begin();
 
@@ -380,9 +399,18 @@ static void setupWebServer()
             gWebServer.send(302, "text/plain", "");
         });
 
+    /* Provide index.html from filesystem. */
     gWebServer.on("/", HTTP_GET, []() {
-        gWebServer.sendHeader("Location", "/index.html");
-        gWebServer.send(302, "text/plain", "");
+        File file = LittleFS.open("/index.html", "r");
+        if (false == file)
+        {
+            gWebServer.send(404, "text/plain", "File not found");
+        }
+        else
+        {
+            gWebServer.streamFile(file, "text/html");
+            file.close();
+        }
     });
 
     gWebServer.on("/change-partition", HTTP_GET, []() {
@@ -391,7 +419,15 @@ static void setupWebServer()
         ESP.restart();
     });
 
-    EmbeddedFiles_setup(gWebServer);
+    /* Serve files with static content. */
+    while (UTIL_ARRAY_NUM(gStaticRoutes) > idx)
+    {
+        const char* route = gStaticRoutes[idx];
+
+        gWebServer.serveStatic(route, LittleFS, route);
+
+        ++idx;
+    }
 }
 
 /**
