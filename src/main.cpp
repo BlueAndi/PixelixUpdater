@@ -279,7 +279,6 @@ void setup()
 
     setupOta();
     setupWebServer();
-    setAppPartition0Active();
 }
 
 /**
@@ -427,6 +426,13 @@ static void setupWebServer()
         gWebServer.send(302, "text/plain", "");
     });
 
+    gWebServer.on("/change-partition", HTTP_GET, []() {
+        gWebServer.send(200, "text/plain", "Restart initiated!");
+        setAppPartition0Active();
+        delay(1000);
+        ESP.restart();
+    });
+
     gWebServer.on("/upload.html", HTTP_POST, handleUpload, handleFileUpload);
 
     EmbeddedFiles_setup(gWebServer);
@@ -512,8 +518,8 @@ static void stateStaSetup()
 }
 
 /**
- * State machine function for the connected state.
- * This state is entered when the device is connected to the WiFi network.
+ * State machine function for the connecting state.
+ * This state is entered when the wifi station was setup successfully.
  */
 static void stateStaConnecting()
 {

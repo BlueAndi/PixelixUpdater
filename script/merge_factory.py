@@ -40,11 +40,11 @@ Import("env")  # pylint: disable=undefined-variable
 
 FACTORY_PROGNAME = "factory"
 MERGE_PROGNAME = "merged-firmware"
-PLATFORM = env.PioPlatform()
+PLATFORM = env.PioPlatform() # pylint: disable=undefined-variable
 
 # Get project and build directories from the environment.
-PROJECT_DIR = env.subst("$PROJECT_DIR")
-BUILD_DIR = env.subst("$BUILD_DIR")
+PROJECT_DIR = env.subst("$PROJECT_DIR") # pylint: disable=undefined-variable
+BUILD_DIR = env.subst("$BUILD_DIR") # pylint: disable=undefined-variable
 
 ################################################################################
 # Classes
@@ -186,7 +186,7 @@ def change_progname(target, source, env): # pylint: disable=unused-argument
     env.Replace(PROGNAME=MERGE_PROGNAME)  # pylint: disable=undefined-variable
     print(f"Changed program name to {MERGE_PROGNAME} for upload.")
 
-def replace_firmware(target, source, env):
+def replace_firmware(target, source, env): # pylint: disable=unused-argument
     """
     Replace the firmware.bin of the app partition with the merged-firmware.bin created in merge_factory.
     
@@ -197,7 +197,7 @@ def replace_firmware(target, source, env):
     """
 
     # Define paths for firmware.bin and the binary it will be replaced by
-    old_firmware_image = os.path.join(BUILD_DIR, f"firmware.bin")
+    old_firmware_image = os.path.join(BUILD_DIR, "firmware.bin")
     new_firmware_image = os.path.join(BUILD_DIR, f"{MERGE_PROGNAME}.bin")
 
     if not os.path.exists(new_firmware_image):
@@ -208,10 +208,10 @@ def replace_firmware(target, source, env):
         os.remove(old_firmware_image)
         print(f"Removed old firmware: {old_firmware_image}")
     else:
-        print(f"No old firmware found to remove.")
+        print("No old firmware found to remove.")
 
     os.rename(new_firmware_image, old_firmware_image)
-    print(f"Replaced firmware successfully!")
+    print("Replaced firmware successfully!")
 
 ################################################################################
 # Main

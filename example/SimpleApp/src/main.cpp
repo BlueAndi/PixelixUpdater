@@ -51,6 +51,9 @@
 #define CONFIG_ESP_LOG_SEVERITY (ESP_LOG_INFO)
 #endif /* CONFIG_ESP_LOG_SEVERITY */
 
+/** Get number of array elements. */
+#define UTIL_ARRAY_NUM(__arr) (sizeof(__arr) / sizeof((__arr)[0]))
+
 /******************************************************************************
  * Types and Classes
  *****************************************************************************/
@@ -115,11 +118,6 @@ static const uint32_t HWCDC_TX_TIMEOUT = 4U;
 static const char* LOG_TAG                    = "main";
 
 /**
- * OTA password.
- */
-static const char* OTA_PASSWORD               = "maytheforcebewithyou";
-
-/**
  * SettingsService namespace used for preferences.
  */
 static const char* PREF_NAMESPACE             = "settings";
@@ -157,27 +155,27 @@ static const char* DEFAULT_WIFI_AP_PASSPHRASE = "Luke, I am your father.";
 /**
  * The hostname of the device.
  */
-static String gSettingsHostname = DEFAULT_HOSTNAME;
+static String gSettingsHostname               = DEFAULT_HOSTNAME;
 
 /**
  * WiFi SSID.
  */
-static String gSettingsWifiSSID = DEFAULT_WIFI_SSID;
+static String gSettingsWifiSSID               = DEFAULT_WIFI_SSID;
 
 /**
  * WiFi passphrase.
  */
-static String gSettingsWifiPassphrase = DEFAULT_WIFI_PASSPHRASE;
+static String gSettingsWifiPassphrase         = DEFAULT_WIFI_PASSPHRASE;
 
 /**
  * WiFi Access Point SSID.
  */
-static String gSettingsWifiApSSID = DEFAULT_WIFI_AP_SSID;
+static String gSettingsWifiApSSID             = DEFAULT_WIFI_AP_SSID;
 
 /**
  * WiFi Access Point passphrase.
  */
-static String gSettingsWifiApPassphrase = DEFAULT_WIFI_AP_PASSPHRASE;
+static String gSettingsWifiApPassphrase       = DEFAULT_WIFI_AP_PASSPHRASE;
 
 /**
  * Web server instance.
@@ -217,11 +215,15 @@ static const uint16_t DNS_PORT = 53U;
  */
 static DNSServer gDnsServer;
 
-/** Firmware binary filename, used for update. */
-static const char* FIRMWARE_FILENAME   = "firmware.bin";
-
-/** Filesystem binary filename, used for update. */
-static const char* FILESYSTEM_FILENAME = "littlefs.bin";
+/**
+ * Static routes to files.
+ */
+static const char* gStaticRoutes[] = {
+    "/favicon.png",
+    "/images/",
+    "/js/",
+    "/style/"
+};
 
 /******************************************************************************
  * External functions
@@ -250,6 +252,11 @@ void setup()
     /* Set severity for esp logging system. */
     esp_log_level_set("*", CONFIG_ESP_LOG_SEVERITY);
 
+    if (false == LittleFS.begin())
+    {
+        Serial.println("LittleFS Mount Failed\n");
+    }
+
     /* Load settings from the persistent storage. */
     loadSettings();
 
@@ -266,7 +273,6 @@ void setup()
     (void)WiFi.mode(WIFI_STA);
 
     setupWebServer();
-    setFactoryPartitionActive();
 }
 
 /**
@@ -381,6 +387,8 @@ static void setFactoryPartitionActive()
  */
 static void setupWebServer()
 {
+    uint8_t idx = 0U;
+
     /* Start the web server, before configuration! */
     gWebServer.begin();
 
@@ -394,7 +402,6 @@ static void setupWebServer()
     /* Provide index.html from filesystem. */
     gWebServer.on("/", HTTP_GET, []() {
         File file = LittleFS.open("/index.html", "r");
-
         if (false == file)
         {
             gWebServer.send(404, "text/plain", "File not found");
@@ -405,6 +412,23 @@ static void setupWebServer()
             file.close();
         }
     });
+
+    gWebServer.on("/change-partition", HTTP_GET, []() {
+        gWebServer.send(200, "text/plain", "Restart initiated!");
+        setFactoryPartitionActive();
+        delay(1000);
+        ESP.restart();
+    });
+
+    /* Serve files with static content. */
+    while (UTIL_ARRAY_NUM(gStaticRoutes) > idx)
+    {
+        const char* route = gStaticRoutes[idx];
+
+        gWebServer.serveStatic(route, LittleFS, route);
+
+        ++idx;
+    }
 }
 
 /**
@@ -482,8 +506,8 @@ static void stateStaSetup()
 }
 
 /**
- * State machine function for the connected state.
- * This state is entered when the device is connected to the WiFi network.
+ * State machine function for the connecting state.
+ * This state is entered when the wifi station was setup successfully.
  */
 static void stateStaConnecting()
 {
