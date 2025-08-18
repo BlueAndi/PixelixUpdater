@@ -31,7 +31,7 @@ jobs:
           #- adafruit_matrixportal_s3-factory
           - az-delivery-devkit-v4-factory
           - esp32doit-devkit-v1-factory
-          - esp32-s3-devkitc-1-factory
+          - esp32-s3-devkitc-1-n16r8v-factory
           - esp32-nodemcu-factory
           - lilygo-ttgo-t-display-factory
           - lilygo-t-display-s3-factory
@@ -97,7 +97,7 @@ jobs:
           #- adafruit_matrixportal_s3-factory
           - az-delivery-devkit-v4-factory
           - esp32doit-devkit-v1-factory
-          - esp32-s3-devkitc-1-factory
+          - esp32-s3-devkitc-1-n16r8v-factory
           - esp32-nodemcu-factory
           - lilygo-ttgo-t-display-factory
           - lilygo-t-display-s3-factory
