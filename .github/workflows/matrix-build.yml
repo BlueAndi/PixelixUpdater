@@ -33,7 +33,7 @@ jobs:
           - esp32-nodemcu-factory
           - lilygo-ttgo-t-display-factory
           - lilygo-t-display-s3-factory
-          - m5stack_core-factory
+          #- m5stack_core-factory
           - ulanzi-tc001-factory
           - wemos_lolin_s2_mini-factory
 
@@ -99,7 +99,7 @@ jobs:
           - esp32-nodemcu-factory
           - lilygo-ttgo-t-display-factory
           - lilygo-t-display-s3-factory
-          - m5stack_core-factory
+          #- m5stack_core-factory
           - ulanzi-tc001-factory
           - wemos_lolin_s2_mini-factory
 
