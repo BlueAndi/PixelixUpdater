@@ -193,7 +193,7 @@ def replace_firmware(target, source, env): # pylint: disable=unused-argument
     Args:
         target: The target files (not used in this function).
         source: The source files (not used in this function).
-        env: The environment object containing project and build directories.
+        env: The environment object containing project and build directories (not used in this function).
     """
 
     # Define paths for firmware.bin and the binary it will be replaced by

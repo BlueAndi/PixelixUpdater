@@ -34,6 +34,7 @@ Must be done before building the firmware.
 
 import os
 import sys
+import requests
 Import("env") # pylint: disable=undefined-variable
 
 ################################################################################
@@ -42,7 +43,10 @@ Import("env") # pylint: disable=undefined-variable
 
 FACTORY_PARTITION_NAME = "factory"
 FACTORY_BINARY_NAME = env.GetProjectOption("custom_factory_name", "") # pylint: disable=undefined-variable
+FACTORY_BINARY_BASE_URL = env.GetProjectOption("custom_factory_url", "") # pylint: disable=undefined-variable
+FACTORY_BINARY_DIR = env.GetProjectOption("custom_factory_dir", "") # pylint: disable=undefined-variable
 PROJECT_DIR = env.subst("$PROJECT_DIR") # pylint: disable=undefined-variable
+ENV_NAME = env["PIOENV"] # pylint: disable=undefined-variable
 
 ################################################################################
 # Classes
@@ -90,15 +94,72 @@ def get_partition_table(env): # pylint: disable=undefined-variable
 
     return partition_table
 
+def getFactoryImage():
+    """
+    Get the factory binary file either provided by the user or downloaded from a custom url.
+    
+    Args:
+    
+    Returns:
+        str: A path to a factory binary file.
+    """
+    factory_image = ""
+    factory_binary_url = ""
+    factory_name = ""
+
+    # Factory image provided
+    if FACTORY_BINARY_NAME != "":
+        factory_image = os.path.join(PROJECT_DIR, f"{FACTORY_BINARY_NAME}.bin")
+        if os.path.isfile(factory_image):
+            return factory_image
+        print(f"File {FACTORY_BINARY_NAME}.bin does not exist in the project directory. Trying to download a binary from the custom url now.")
+
+    # Download factory image
+    if FACTORY_BINARY_BASE_URL != "":
+        # Is directory specified?
+        if FACTORY_BINARY_DIR == "":
+            print("Directory for factory binaries is missing. Please specify a or provide a binary yourself.")
+            return
+
+        custom_factory_dir = os.path.join(PROJECT_DIR, FACTORY_BINARY_DIR)
+
+        # Does it exist?
+        if not os.path.isdir(custom_factory_dir):
+            print("Directory for factory binaries does not exist!")
+            return
+
+        factory_image = os.path.join(custom_factory_dir, factory_name)
+
+        # Adjust the URL depending on the environment name to ensure the binary matches the board.
+        if ENV_NAME.endswith("app"):
+            factory_name = f"{ENV_NAME.rsplit('app', 1)[0]}factory.bin"
+            factory_binary_url = f"{FACTORY_BINARY_BASE_URL.rstrip('/')}/{factory_name}"
+        else:
+            print("Cannot download binary for this environment.")
+            return
+
+        response = requests.get(factory_binary_url)
+
+        if response.status_code != 200:
+            print("Download error: %d" % response.status_code)
+            return ""
+        with open(factory_image, "wb") as file:
+            file.write(response.content)
+
+        return factory_image
+    else:
+        print("Could not get factory binary. Please provide a factory binary or specify a URL for the download.")
+        return factory_image
+
 ################################################################################
 # Main
 ################################################################################
 
-if FACTORY_BINARY_NAME != "":
-    factory_image = os.path.join(PROJECT_DIR, f"{FACTORY_BINARY_NAME}.bin")
-    partition_table = get_partition_table(env) # pylint: disable=undefined-variable
-    factory_offset = 0
+factory_image = getFactoryImage()
+partition_table = get_partition_table(env) # pylint: disable=undefined-variable
+factory_offset = 0
 
+if factory_image != "":
     # Get the offset for the factory image from the partition table.
     for partition in partition_table:
         if partition["name"] == FACTORY_PARTITION_NAME:
@@ -113,4 +174,4 @@ if FACTORY_BINARY_NAME != "":
     else:
         print(f"No offset found for partition: {FACTORY_PARTITION_NAME}")
 else:
-    print("No factory binary set in platform.ini!")
+    print("No factory image found!")
