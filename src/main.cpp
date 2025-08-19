@@ -80,7 +80,6 @@ static void loadSettings();
 static void appendDeviceUniqueId(String& deviceUniqueId);
 static void getChipId(String& chipId);
 static void setAppPartition0Active();
-static void setupOta();
 static void setupWebServer();
 static void stateMachine();
 static void stateInit();
@@ -280,7 +279,6 @@ void setup()
     /* Start wifi */
     (void)WiFi.mode(WIFI_STA);
 
-    setupOta();
     setupWebServer();
 }
 
@@ -290,7 +288,6 @@ void setup()
 void loop()
 {
     stateMachine();
-    ArduinoOTA.handle();
     gWebServer.handleClient();
 
     /* Schedule other tasks with same or lower priority. */
@@ -389,18 +386,6 @@ static void setAppPartition0Active()
         ESP_LOGI(LOG_TAG, "Setting app0 partition '%s' as boot partition", partition->label);
         esp_ota_set_boot_partition(partition);
     }
-}
-
-/**
- * Setup OTA (Over-The-Air) updates.
- */
-static void setupOta()
-{
-    (void)ArduinoOTA.setPassword(OTA_PASSWORD);
-    (void)ArduinoOTA.setRebootOnSuccess(true);
-    (void)ArduinoOTA.setMdnsEnabled(true);
-    (void)ArduinoOTA.setHostname(gSettingsHostname.c_str());
-    ArduinoOTA.begin();
 }
 
 /**
