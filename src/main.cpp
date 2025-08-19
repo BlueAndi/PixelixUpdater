@@ -484,7 +484,7 @@ static void stateMachine()
 }
 
 /**
- * State machine function for the idle state.
+ * State machine function for the init state.
  * This is the initial state of the application.
  */
 static void stateInit()
