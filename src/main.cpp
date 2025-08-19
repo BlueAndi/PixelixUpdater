@@ -62,7 +62,7 @@
  */
 typedef enum
 {
-    STATE_IDLE,           /**< Idle state */
+    STATE_INIT,           /**< Init state */
     STATE_STA_SETUP,      /**< Setup WiFi station */
     STATE_STA_CONNECTING, /**< Connecting to WiFi */
     STATE_STA_CONNECTED,  /**< Connected to WiFi */
@@ -83,7 +83,7 @@ static void setAppPartition0Active();
 static void setupOta();
 static void setupWebServer();
 static void stateMachine();
-static void stateIdle();
+static void stateInit();
 static void stateStaSetup();
 static void stateStaConnecting();
 static void stateStaConnected();
@@ -92,6 +92,9 @@ static void stateApUp();
 static void stateError();
 static void handleUpload();
 static void handleFileUpload();
+static void handleFileStart(HTTPUpload& upload);
+static void handleFileWrite(HTTPUpload& upload);
+static void handleFileEnd(HTTPUpload& upload);
 
 /******************************************************************************
  * Variables
@@ -119,72 +122,72 @@ static const uint32_t HWCDC_TX_TIMEOUT = 4U;
 /**
  * Tag for logging purposes.
  */
-static const char* LOG_TAG                    = "main";
+static const char LOG_TAG[]                    = "main";
 
 /**
  * OTA password.
  */
-static const char* OTA_PASSWORD               = "maytheforcebewithyou";
+static const char OTA_PASSWORD[]               = "maytheforcebewithyou";
 
 /**
  * SettingsService namespace used for preferences.
  */
-static const char* PREF_NAMESPACE             = "settings";
+static const char PREF_NAMESPACE[]             = "settings";
 
 /** Hostname key */
-static const char* KEY_HOSTNAME               = "hostname";
+static const char KEY_HOSTNAME[]               = "hostname";
 
 /** Wifi network key */
-static const char* KEY_WIFI_SSID              = "sta_ssid";
+static const char KEY_WIFI_SSID[]              = "sta_ssid";
 
 /** Wifi network passphrase key */
-static const char* KEY_WIFI_PASSPHRASE        = "sta_passphrase";
+static const char KEY_WIFI_PASSPHRASE[]        = "sta_passphrase";
 
 /** Wifi Access Point SSID key */
-static const char* KEY_WIFI_AP_SSID           = "ap_ssid";
+static const char KEY_WIFI_AP_SSID[]           = "ap_ssid";
 
 /** Wifi Access Point passphrase key */
-static const char* KEY_WIFI_AP_PASSPHRASE     = "ap_passphrase";
+static const char KEY_WIFI_AP_PASSPHRASE[]     = "ap_passphrase";
 
 /** Hostname default value */
-static const char* DEFAULT_HOSTNAME           = "pixelix";
+static const char DEFAULT_HOSTNAME[]           = "pixelix";
 
 /** Wifi network default value */
-static const char* DEFAULT_WIFI_SSID          = "";
+static const char DEFAULT_WIFI_SSID[]          = "";
 
 /** Wifi network passphrase default value */
-static const char* DEFAULT_WIFI_PASSPHRASE    = "";
+static const char DEFAULT_WIFI_PASSPHRASE[]    = "";
 
 /** Wifi Access Point SSID default value */
-static const char* DEFAULT_WIFI_AP_SSID       = "pixelix";
+static const char DEFAULT_WIFI_AP_SSID[]       = "pixelix";
 
 /** Wifi Access Point passphrase default value */
-static const char* DEFAULT_WIFI_AP_PASSPHRASE = "Luke, I am your father.";
+static const char DEFAULT_WIFI_AP_PASSPHRASE[] = "Luke, I am your father.";
 
 /**
  * The hostname of the device.
  */
-static String gSettingsHostname = DEFAULT_HOSTNAME;
+static String gSettingsHostname                = DEFAULT_HOSTNAME;
 
 /**
  * WiFi SSID.
  */
-static String gSettingsWifiSSID = DEFAULT_WIFI_SSID;
+static String gSettingsWifiSSID                = DEFAULT_WIFI_SSID;
 
 /**
  * WiFi passphrase.
  */
-static String gSettingsWifiPassphrase = DEFAULT_WIFI_PASSPHRASE;
+static String gSettingsWifiPassphrase          = DEFAULT_WIFI_PASSPHRASE;
 
 /**
  * WiFi Access Point SSID.
  */
-static String gSettingsWifiApSSID = DEFAULT_WIFI_AP_SSID;
+static String gSettingsWifiApSSID              = DEFAULT_WIFI_AP_SSID;
 
 /**
  * WiFi Access Point passphrase.
  */
-static String gSettingsWifiApPassphrase = DEFAULT_WIFI_AP_PASSPHRASE;
+static String gSettingsWifiApPassphrase        = DEFAULT_WIFI_AP_PASSPHRASE;
 
 /**
  * Web server instance.
@@ -194,7 +197,7 @@ static WebServer gWebServer(80U);
 /**
  * Current state of the application.
  */
-static State gState = STATE_IDLE;
+static State gState = STATE_INIT;
 
 /**
  * Set access point local address.
@@ -225,16 +228,16 @@ static const uint16_t DNS_PORT = 53U;
 static DNSServer gDnsServer;
 
 /** Firmware binary filename, used for update. */
-static const char* FIRMWARE_FILENAME   = "firmware.bin";
+static const char FIRMWARE_FILENAME[]      = "firmware.bin";
 
 /** Filesystem binary filename, used for update. */
-static const char* FILESYSTEM_FILENAME = "littlefs.bin";
+static const char FILESYSTEM_FILENAME[]    = "littlefs.bin";
 
 /** Firmware binary size HTTP request header. */
-static const char* FIRMWARE_SIZE_HEADER = "X-File-Size-Firmware";
+static const char FIRMWARE_SIZE_HEADER[]   = "X-File-Size-Firmware";
 
 /** Filesystem binary size HTTP request header.  */
-static const char* FILESYSTEM_SIZE_HEADER = "X-File-Size-Filesystem";
+static const char FILESYSTEM_SIZE_HEADER[] = "X-File-Size-Filesystem";
 
 /******************************************************************************
  * External functions
@@ -405,8 +408,8 @@ static void setupOta()
  */
 static void setupWebServer()
 {
-    const char *headerKeys[] = {FIRMWARE_SIZE_HEADER, FILESYSTEM_SIZE_HEADER};
-    size_t keyCount = sizeof(headerKeys) / sizeof(headerKeys[0]);
+    const char* headerKeys[] = { FIRMWARE_SIZE_HEADER, FILESYSTEM_SIZE_HEADER };
+    size_t      keyCount     = sizeof(headerKeys) / sizeof(headerKeys[0]);
 
     /* Start the web server, before configuration! */
     gWebServer.begin();
@@ -446,8 +449,8 @@ static void stateMachine()
 {
     switch (gState)
     {
-    case STATE_IDLE:
-        stateIdle();
+    case STATE_INIT:
+        stateInit();
         break;
 
     case STATE_STA_SETUP:
@@ -484,7 +487,7 @@ static void stateMachine()
  * State machine function for the idle state.
  * This is the initial state of the application.
  */
-static void stateIdle()
+static void stateInit()
 {
     if (true == gSettingsWifiSSID.isEmpty())
     {
@@ -656,89 +659,104 @@ static void handleFileUpload()
 
     if (UPLOAD_FILE_START == upload.status)
     {
-        int    cmd      = U_FLASH;
-        size_t fileSize = UPDATE_SIZE_UNKNOWN;
-        String headerXFileSize;
-
-        /* If there is a pending upload, abort it. */
-        if (true == Update.isRunning())
-        {
-            Update.abort();
-            ESP_LOGW(LOG_TAG, "Aborted pending upload.");
-        }
-
-        /* Upload firmware or filesystem? */
-        if (upload.filename == FIRMWARE_FILENAME)
-        {
-            headerXFileSize = gWebServer.header("X-File-Size-Firmware");
-            cmd             = U_FLASH;
-        }
-        else if (upload.filename == FILESYSTEM_FILENAME)
-        {
-            headerXFileSize = gWebServer.header("X-File-Size-Filesystem");
-            cmd             = U_SPIFFS;
-        }
-        else
-        {
-            /* Unknown. */
-            ;
-        }
-
-        /* File size available? */
-        if (false == headerXFileSize.isEmpty())
-        {
-            int32_t headerXFileSizeValue = headerXFileSize.toInt();
-
-            if (0 < headerXFileSizeValue)
-            {
-                fileSize = static_cast<size_t>(headerXFileSizeValue);
-
-                ESP_LOGI(LOG_TAG, "File size from header: %u bytes", fileSize);
-            }
-        }
-
-        if (false == Update.begin(fileSize, cmd))
-        {
-            ESP_LOGE(LOG_TAG, "Failed to begin file upload: %s", upload.filename.c_str());
-            gWebServer.send(500, "text/plain", "Failed to begin file upload.");
-        }
-        else
-        {
-            ESP_LOGI(LOG_TAG, "File upload started: %s", upload.filename.c_str());
-        }
+        handleFileStart(upload);
     }
     else if (UPLOAD_FILE_WRITE == upload.status)
     {
-        if (upload.currentSize != Update.write(upload.buf, upload.currentSize))
-        {
-            ESP_LOGE(LOG_TAG, "Failed to write file upload: %s", upload.filename.c_str());
-            ESP_LOGE(LOG_TAG, "Upload error: %s", Update.errorString());
-            Update.abort();
-            gWebServer.send(500, "text/plain", "Failed to write file upload.");
-        }
-        else
-        {
-            ESP_LOGI(LOG_TAG, "File upload progress: %u bytes", upload.currentSize);
-        }
+        handleFileWrite(upload);
     }
     else if (UPLOAD_FILE_END == upload.status)
     {
-        if (false == Update.end())
-        {
-            ESP_LOGE(LOG_TAG, "Failed to end file upload: %s", upload.filename.c_str());
-            ESP_LOGE(LOG_TAG, "Upload error: %s", Update.errorString());
-            Update.abort();
-            gWebServer.send(500, "text/plain", "Failed to end file upload.");
-        }
-        else
-        {
-            ESP_LOGI(LOG_TAG, "File upload finished: %s (%u bytes)", upload.filename.c_str(), upload.totalSize);
-        }
+        handleFileEnd(upload);
     }
     else
     {
         ESP_LOGI(LOG_TAG, "File upload aborted: %s", upload.filename.c_str());
         Update.abort();
         gWebServer.send(500, "text/plain", "File upload aborted.");
+    }
+}
+
+static void handleFileStart(HTTPUpload& upload)
+{
+    int    cmd      = U_FLASH;
+    size_t fileSize = UPDATE_SIZE_UNKNOWN;
+    String headerXFileSize;
+
+    /* If there is a pending upload, abort it. */
+    if (true == Update.isRunning())
+    {
+        Update.abort();
+        ESP_LOGW(LOG_TAG, "Aborted pending upload.");
+    }
+
+    /* Upload firmware or filesystem? */
+    if (upload.filename == FIRMWARE_FILENAME)
+    {
+        headerXFileSize = gWebServer.header(FIRMWARE_SIZE_HEADER);
+        cmd             = U_FLASH;
+    }
+    else if (upload.filename == FILESYSTEM_FILENAME)
+    {
+        headerXFileSize = gWebServer.header(FILESYSTEM_SIZE_HEADER);
+        cmd             = U_SPIFFS;
+    }
+    else
+    {
+        /* Unknown. */
+        ;
+    }
+
+    /* File size available? */
+    if (false == headerXFileSize.isEmpty())
+    {
+        int32_t headerXFileSizeValue = headerXFileSize.toInt();
+
+        if (0 < headerXFileSizeValue)
+        {
+            fileSize = static_cast<size_t>(headerXFileSizeValue);
+
+            ESP_LOGI(LOG_TAG, "File size from header: %u bytes", fileSize);
+        }
+    }
+
+    if (false == Update.begin(fileSize, cmd))
+    {
+        ESP_LOGE(LOG_TAG, "Failed to begin file upload: %s", upload.filename.c_str());
+        gWebServer.send(500, "text/plain", "Failed to begin file upload.");
+    }
+    else
+    {
+        ESP_LOGI(LOG_TAG, "File upload started: %s", upload.filename.c_str());
+    }
+}
+
+static void handleFileWrite(HTTPUpload& upload)
+{
+    if (upload.currentSize != Update.write(upload.buf, upload.currentSize))
+    {
+        ESP_LOGE(LOG_TAG, "Failed to write file upload: %s", upload.filename.c_str());
+        ESP_LOGE(LOG_TAG, "Upload error: %s", Update.errorString());
+        Update.abort();
+        gWebServer.send(500, "text/plain", "Failed to write file upload.");
+    }
+    else
+    {
+        ESP_LOGI(LOG_TAG, "File upload progress: %u bytes", upload.currentSize);
+    }
+}
+
+static void handleFileEnd(HTTPUpload& upload)
+{
+    if (false == Update.end())
+    {
+        ESP_LOGE(LOG_TAG, "Failed to end file upload: %s", upload.filename.c_str());
+        ESP_LOGE(LOG_TAG, "Upload error: %s", Update.errorString());
+        Update.abort();
+        gWebServer.send(500, "text/plain", "Failed to end file upload.");
+    }
+    else
+    {
+        ESP_LOGI(LOG_TAG, "File upload finished: %s (%u bytes)", upload.filename.c_str(), upload.totalSize);
     }
 }
