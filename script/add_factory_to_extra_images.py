@@ -94,9 +94,9 @@ def get_partition_table(env): # pylint: disable=undefined-variable
 
     return partition_table
 
-def getFactoryImage():
+def get_factory_image():
     """
-    Get the factory binary file either provided by the user or downloaded from a custom url.
+    Get the factory binary file either provided by the user or downloaded from a custom url. Binary can only be downloaded if a directory for the binary file is specified.
     
     Args:
     
@@ -112,23 +112,21 @@ def getFactoryImage():
         factory_image = os.path.join(PROJECT_DIR, f"{FACTORY_BINARY_NAME}.bin")
         if os.path.isfile(factory_image):
             return factory_image
-        print(f"File {FACTORY_BINARY_NAME}.bin does not exist in the project directory. Trying to download a binary from the custom url now.")
+        print(f"File {FACTORY_BINARY_NAME}.bin does not exist in the project directory. Trying to download a binary from the custom url.")
 
     # Download factory image
     if FACTORY_BINARY_BASE_URL != "":
-        # Is directory specified?
+        # Is a directory specified?
         if FACTORY_BINARY_DIR == "":
-            print("Directory for factory binaries is missing. Please specify a or provide a binary yourself.")
-            return
+            print("Directory for factory binaries is missing. Please specify a directory or provide a binary yourself.")
+            return ""
 
         custom_factory_dir = os.path.join(PROJECT_DIR, FACTORY_BINARY_DIR)
 
         # Does it exist?
         if not os.path.isdir(custom_factory_dir):
             print("Directory for factory binaries does not exist!")
-            return
-
-        factory_image = os.path.join(custom_factory_dir, factory_name)
+            return ""
 
         # Adjust the URL depending on the environment name to ensure the binary matches the board.
         if ENV_NAME.endswith("app"):
@@ -136,26 +134,32 @@ def getFactoryImage():
             factory_binary_url = f"{FACTORY_BINARY_BASE_URL.rstrip('/')}/{factory_name}"
         else:
             print("Cannot download binary for this environment.")
-            return
-
-        response = requests.get(factory_binary_url)
-
-        if response.status_code != 200:
-            print("Download error: %d" % response.status_code)
             return ""
-        with open(factory_image, "wb") as file:
-            file.write(response.content)
+
+        factory_image = os.path.join(custom_factory_dir, factory_name)
+
+        # Request 
+        try:
+            response = requests.get(factory_binary_url, timeout=15)
+            if response.status_code != 200:
+                print(f"Download error: {response.status_code}")
+                return ""
+            with open(factory_image, "wb") as file:
+                file.write(response.content)
+        except Exception as e:
+            print(f"Failed to retrieve or save the factory binary: {e}")
+            return ""
 
         return factory_image
-    else:
-        print("Could not get factory binary. Please provide a factory binary or specify a URL for the download.")
-        return factory_image
+
+    print("Could not get factory binary. Please provide a factory binary or specify a URL for the download.")
+    return ""
 
 ################################################################################
 # Main
 ################################################################################
 
-factory_image = getFactoryImage()
+factory_image = get_factory_image()
 partition_table = get_partition_table(env) # pylint: disable=undefined-variable
 factory_offset = 0
 
