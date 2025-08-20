@@ -4,4 +4,4 @@
 .vscode/launch.json
 .vscode/ipch
 src/generated
-example/SimpleApp/factory.bin
+example/SimpleApp/factory_binaries/
