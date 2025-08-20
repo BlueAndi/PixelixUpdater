@@ -44,6 +44,7 @@ Import("env") # pylint: disable=undefined-variable
 FACTORY_PARTITION_NAME = "factory"
 PROJECT_DIR = env.subst("$PROJECT_DIR") # pylint: disable=undefined-variable
 FACTORY_BINARY = env.GetProjectOption("custom_factory_binary", "") # pylint: disable=undefined-variable
+ENV_NAME = env["PIOENV"] # pylint: disable=undefined-variable
 
 ################################################################################
 # Classes
@@ -102,13 +103,13 @@ def get_factory_image() -> Optional[str]:
 
     if FACTORY_BINARY != "":
         factory_image = os.path.join(PROJECT_DIR, FACTORY_BINARY)
-        
+
         if os.path.isfile(factory_image):
             return factory_image
         else:
-            print("Factory binary for this environment does not exist!")
+            print(f"Factory binary: {factory_image} does not exist!")
     else:
-        print("No binary specified for this environment in platfromio.ini!")
+        print(f"No factory binary specified for environment: {ENV_NAME}!")
 
     return None
 
@@ -133,6 +134,6 @@ if factory_image is not None:
             ]
         )
     else:
-        print(f"No offset found for partition: {FACTORY_PARTITION_NAME}")
+        raise Exception(f"No offset found for partition: {FACTORY_PARTITION_NAME}!")
 else:
     print("No factory image found!")
