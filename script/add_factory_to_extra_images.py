@@ -1,7 +1,7 @@
 """
-This script adds a factory binary to FLASH_EXTRA_IMAGES with the offset defined in the partition table. 
-This way the factory binary will be flashed together with the firmware binary during the upload process.
-Must be done before building the firmware.
+This script adds a factory binary to FLASH_EXTRA_IMAGES with the offset defined in the 
+partition table. This way the factory binary will be flashed together with the firmware 
+binary during the upload process. Must be done before building the firmware.
 """
 
 # MIT License
@@ -34,18 +34,16 @@ Must be done before building the firmware.
 
 import os
 import sys
-import requests
+from typing import Optional
 Import("env") # pylint: disable=undefined-variable
 
 ################################################################################
 # Variables
-################################################################################ 
+################################################################################
 
 FACTORY_PARTITION_NAME = "factory"
-FACTORY_BINARY_NAME = env.GetProjectOption("custom_factory_name", "") # pylint: disable=undefined-variable
-FACTORY_BINARY_BASE_URL = env.GetProjectOption("custom_factory_url", "") # pylint: disable=undefined-variable
-FACTORY_BINARY_DIR = env.GetProjectOption("custom_factory_dir", "") # pylint: disable=undefined-variable
 PROJECT_DIR = env.subst("$PROJECT_DIR") # pylint: disable=undefined-variable
+FACTORY_BINARY = env.GetProjectOption("custom_factory_binary", "") # pylint: disable=undefined-variable
 ENV_NAME = env["PIOENV"] # pylint: disable=undefined-variable
 
 ################################################################################
@@ -94,88 +92,49 @@ def get_partition_table(env): # pylint: disable=undefined-variable
 
     return partition_table
 
-def get_factory_image():
+def get_factory_image() -> Optional[str]:
     """
-    Get the factory binary file either provided by the user or downloaded from a custom url. Binary can only be downloaded if a directory for the binary file is specified.
-    
-    Args:
+    Get the factory binary file depending on the active environment.
     
     Returns:
         str: A path to a factory binary file.
     """
     factory_image = ""
-    factory_binary_url = ""
-    factory_name = ""
 
-    # Factory image provided
-    if FACTORY_BINARY_NAME != "":
-        factory_image = os.path.join(PROJECT_DIR, f"{FACTORY_BINARY_NAME}.bin")
+    if FACTORY_BINARY != "":
+        factory_image = os.path.join(PROJECT_DIR, FACTORY_BINARY)
+
         if os.path.isfile(factory_image):
             return factory_image
-        print(f"File {FACTORY_BINARY_NAME}.bin does not exist in the project directory. Trying to download a binary from the custom url.")
-
-    # Download factory image
-    if FACTORY_BINARY_BASE_URL != "":
-        # Is a directory specified?
-        if FACTORY_BINARY_DIR == "":
-            print("Directory for factory binaries is missing. Please specify a directory or provide a binary yourself.")
-            return ""
-
-        custom_factory_dir = os.path.join(PROJECT_DIR, FACTORY_BINARY_DIR)
-
-        # Does it exist?
-        if not os.path.isdir(custom_factory_dir):
-            print("Directory for factory binaries does not exist!")
-            return ""
-
-        # Adjust the URL depending on the environment name to ensure the binary matches the board.
-        if ENV_NAME.endswith("app"):
-            factory_name = f"{ENV_NAME.rsplit('app', 1)[0]}factory.bin"
-            factory_binary_url = f"{FACTORY_BINARY_BASE_URL.rstrip('/')}/{factory_name}"
         else:
-            print("Cannot download binary for this environment.")
-            return ""
+            print(f"Factory binary: {factory_image} does not exist!")
+    else:
+        print(f"No factory binary specified for environment: {ENV_NAME}!")
 
-        factory_image = os.path.join(custom_factory_dir, factory_name)
-
-        # Request 
-        try:
-            response = requests.get(factory_binary_url, timeout=15)
-            if response.status_code != 200:
-                print(f"Download error: {response.status_code}")
-                return ""
-            with open(factory_image, "wb") as file:
-                file.write(response.content)
-        except Exception as e:
-            print(f"Failed to retrieve or save the factory binary: {e}")
-            return ""
-
-        return factory_image
-
-    print("Could not get factory binary. Please provide a factory binary or specify a URL for the download.")
-    return ""
+    return None
 
 ################################################################################
 # Main
 ################################################################################
 
-factory_image = get_factory_image()
-partition_table = get_partition_table(env) # pylint: disable=undefined-variable
-factory_offset = 0
+if "upload" in sys.argv:
+    factory_image = get_factory_image()
+    partition_table = get_partition_table(env) # pylint: disable=undefined-variable
+    factory_offset = 0
 
-if factory_image != "":
-    # Get the offset for the factory image from the partition table.
-    for partition in partition_table:
-        if partition["name"] == FACTORY_PARTITION_NAME:
-            factory_offset = partition["offset"]
+    if factory_image is not None:
+        # Get the offset for the factory image from the partition table.
+        for partition in partition_table:
+            if partition["name"] == FACTORY_PARTITION_NAME:
+                factory_offset = partition["offset"]
 
-    if factory_offset != 0:
-        env.Append( # pylint: disable=undefined-variable
-            FLASH_EXTRA_IMAGES=[
-                (f"{factory_offset}", f"{factory_image}")
-            ]
-        )
+        if factory_offset != 0:
+            env.Append( # pylint: disable=undefined-variable
+                FLASH_EXTRA_IMAGES=[
+                    (f"{factory_offset}", f"{factory_image}")
+                ]
+            )
+        else:
+            raise Exception(f"No offset found for partition: {FACTORY_PARTITION_NAME}!")
     else:
-        print(f"No offset found for partition: {FACTORY_PARTITION_NAME}")
-else:
-    print("No factory image found!")
+        raise Exception("No factory image found!")
