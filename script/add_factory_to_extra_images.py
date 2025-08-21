@@ -117,23 +117,24 @@ def get_factory_image() -> Optional[str]:
 # Main
 ################################################################################
 
-factory_image = get_factory_image()
-partition_table = get_partition_table(env) # pylint: disable=undefined-variable
-factory_offset = 0
+if "upload" in sys.argv:
+    factory_image = get_factory_image()
+    partition_table = get_partition_table(env) # pylint: disable=undefined-variable
+    factory_offset = 0
 
-if factory_image is not None:
-    # Get the offset for the factory image from the partition table.
-    for partition in partition_table:
-        if partition["name"] == FACTORY_PARTITION_NAME:
-            factory_offset = partition["offset"]
+    if factory_image is not None:
+        # Get the offset for the factory image from the partition table.
+        for partition in partition_table:
+            if partition["name"] == FACTORY_PARTITION_NAME:
+                factory_offset = partition["offset"]
 
-    if factory_offset != 0:
-        env.Append( # pylint: disable=undefined-variable
-            FLASH_EXTRA_IMAGES=[
-                (f"{factory_offset}", f"{factory_image}")
-            ]
-        )
+        if factory_offset != 0:
+            env.Append( # pylint: disable=undefined-variable
+                FLASH_EXTRA_IMAGES=[
+                    (f"{factory_offset}", f"{factory_image}")
+                ]
+            )
+        else:
+            raise Exception(f"No offset found for partition: {FACTORY_PARTITION_NAME}!")
     else:
-        raise Exception(f"No offset found for partition: {FACTORY_PARTITION_NAME}!")
-else:
-    print("No factory image found!")
+        raise Exception("No factory image found!")
