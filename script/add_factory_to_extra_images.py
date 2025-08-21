@@ -1,7 +1,7 @@
 """
-This script adds a factory binary to FLASH_EXTRA_IMAGES with the offset defined in the partition table. 
-This way the factory binary will be flashed together with the firmware binary during the upload process.
-Must be done before building the firmware.
+This script adds a factory binary to FLASH_EXTRA_IMAGES with the offset defined in the 
+partition table. This way the factory binary will be flashed together with the firmware 
+binary during the upload process. Must be done before building the firmware.
 """
 
 # MIT License
@@ -34,15 +34,17 @@ Must be done before building the firmware.
 
 import os
 import sys
+from typing import Optional
 Import("env") # pylint: disable=undefined-variable
 
 ################################################################################
 # Variables
-################################################################################ 
+################################################################################
 
 FACTORY_PARTITION_NAME = "factory"
-FACTORY_BINARY_NAME = env.GetProjectOption("custom_factory_name", "") # pylint: disable=undefined-variable
 PROJECT_DIR = env.subst("$PROJECT_DIR") # pylint: disable=undefined-variable
+FACTORY_BINARY = env.GetProjectOption("custom_factory_binary", "") # pylint: disable=undefined-variable
+ENV_NAME = env["PIOENV"] # pylint: disable=undefined-variable
 
 ################################################################################
 # Classes
@@ -90,27 +92,49 @@ def get_partition_table(env): # pylint: disable=undefined-variable
 
     return partition_table
 
+def get_factory_image() -> Optional[str]:
+    """
+    Get the factory binary file depending on the active environment.
+    
+    Returns:
+        str: A path to a factory binary file.
+    """
+    factory_image = ""
+
+    if FACTORY_BINARY != "":
+        factory_image = os.path.join(PROJECT_DIR, FACTORY_BINARY)
+
+        if os.path.isfile(factory_image):
+            return factory_image
+        else:
+            print(f"Factory binary: {factory_image} does not exist!")
+    else:
+        print(f"No factory binary specified for environment: {ENV_NAME}!")
+
+    return None
+
 ################################################################################
 # Main
 ################################################################################
 
-if FACTORY_BINARY_NAME != "":
-    factory_image = os.path.join(PROJECT_DIR, f"{FACTORY_BINARY_NAME}.bin")
+if "upload" in sys.argv:
+    factory_image = get_factory_image()
     partition_table = get_partition_table(env) # pylint: disable=undefined-variable
     factory_offset = 0
 
-    # Get the offset for the factory image from the partition table.
-    for partition in partition_table:
-        if partition["name"] == FACTORY_PARTITION_NAME:
-            factory_offset = partition["offset"]
+    if factory_image is not None:
+        # Get the offset for the factory image from the partition table.
+        for partition in partition_table:
+            if partition["name"] == FACTORY_PARTITION_NAME:
+                factory_offset = partition["offset"]
 
-    if factory_offset != 0:
-        env.Append( # pylint: disable=undefined-variable
-            FLASH_EXTRA_IMAGES=[
-                (f"{factory_offset}", f"{factory_image}")
-            ]
-        )
+        if factory_offset != 0:
+            env.Append( # pylint: disable=undefined-variable
+                FLASH_EXTRA_IMAGES=[
+                    (f"{factory_offset}", f"{factory_image}")
+                ]
+            )
+        else:
+            raise Exception(f"No offset found for partition: {FACTORY_PARTITION_NAME}!")
     else:
-        print(f"No offset found for partition: {FACTORY_PARTITION_NAME}")
-else:
-    print("No factory binary set in platform.ini!")
+        raise Exception("No factory image found!")

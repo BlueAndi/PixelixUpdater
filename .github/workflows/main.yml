@@ -2,8 +2,6 @@ name: main
 
 # Controls when the action will run.
 on:
-  pull_request:
-    branches: [ main ]
   release:
     # A release, pre-release, or draft of a release is published.
     types: [ published ]
@@ -28,8 +26,19 @@ jobs:
     needs: intro
     strategy:
       matrix:
-        environment: ["esp32doit-devkit-v1-factory"]
-
+        environment:
+          - adafruit_feather_esp32_v2-factory
+          #- adafruit_matrixportal_s3-factory
+          - az-delivery-devkit-v4-factory
+          - esp32doit-devkit-v1-factory
+          - esp32-s3-devkitc-1-n16r8v-factory
+          - esp32-nodemcu-factory
+          - lilygo-ttgo-t-display-factory
+          - lilygo-t-display-s3-factory
+          #- m5stack_core-factory
+          - ulanzi-tc001-factory
+          - wemos_lolin_s2_mini-factory
+          
     # Steps represent a sequence of tasks that will be executed as part of the job.
     steps:
     - name: Checkout repository
@@ -83,7 +92,18 @@ jobs:
     needs: intro
     strategy:
       matrix:
-        environment: ["esp32doit-devkit-v1-factory"]
+        environment:
+          - adafruit_feather_esp32_v2-factory
+          #- adafruit_matrixportal_s3-factory
+          - az-delivery-devkit-v4-factory
+          - esp32doit-devkit-v1-factory
+          - esp32-s3-devkitc-1-n16r8v-factory
+          - esp32-nodemcu-factory
+          - lilygo-ttgo-t-display-factory
+          - lilygo-t-display-s3-factory
+          #- m5stack_core-factory
+          - ulanzi-tc001-factory
+          - wemos_lolin_s2_mini-factory
 
     steps:
     - name: Checkout repository
