@@ -63,7 +63,7 @@
  */
 typedef enum
 {
-    STATE_IDLE,           /**< Idle state */
+    STATE_INIT,           /**< Init state */
     STATE_STA_SETUP,      /**< Setup WiFi station */
     STATE_STA_CONNECTING, /**< Connecting to WiFi */
     STATE_STA_CONNECTED,  /**< Connected to WiFi */
@@ -82,7 +82,7 @@ static void getChipId(String& chipId);
 static void setFactoryPartitionActive();
 static void setupWebServer();
 static void stateMachine();
-static void stateIdle();
+static void stateInit();
 static void stateStaSetup();
 static void stateStaConnecting();
 static void stateStaConnected();
@@ -115,67 +115,67 @@ static const uint32_t HWCDC_TX_TIMEOUT = 4U;
 /**
  * Tag for logging purposes.
  */
-static const char* LOG_TAG                    = "main";
+static const char LOG_TAG[]                    = "main";
 
 /**
  * SettingsService namespace used for preferences.
  */
-static const char* PREF_NAMESPACE             = "settings";
+static const char PREF_NAMESPACE[]             = "settings";
 
 /** Hostname key */
-static const char* KEY_HOSTNAME               = "hostname";
+static const char KEY_HOSTNAME[]               = "hostname";
 
 /** Wifi network key */
-static const char* KEY_WIFI_SSID              = "sta_ssid";
+static const char KEY_WIFI_SSID[]              = "sta_ssid";
 
 /** Wifi network passphrase key */
-static const char* KEY_WIFI_PASSPHRASE        = "sta_passphrase";
+static const char KEY_WIFI_PASSPHRASE[]        = "sta_passphrase";
 
 /** Wifi Access Point SSID key */
-static const char* KEY_WIFI_AP_SSID           = "ap_ssid";
+static const char KEY_WIFI_AP_SSID[]           = "ap_ssid";
 
 /** Wifi Access Point passphrase key */
-static const char* KEY_WIFI_AP_PASSPHRASE     = "ap_passphrase";
+static const char KEY_WIFI_AP_PASSPHRASE[]     = "ap_passphrase";
 
 /** Hostname default value */
-static const char* DEFAULT_HOSTNAME           = "pixelix";
+static const char DEFAULT_HOSTNAME[]           = "pixelix";
 
 /** Wifi network default value */
-static const char* DEFAULT_WIFI_SSID          = "";
+static const char DEFAULT_WIFI_SSID[]          = "";
 
 /** Wifi network passphrase default value */
-static const char* DEFAULT_WIFI_PASSPHRASE    = "";
+static const char DEFAULT_WIFI_PASSPHRASE[]    = "";
 
 /** Wifi Access Point SSID default value */
-static const char* DEFAULT_WIFI_AP_SSID       = "pixelix";
+static const char DEFAULT_WIFI_AP_SSID[]       = "pixelix";
 
 /** Wifi Access Point passphrase default value */
-static const char* DEFAULT_WIFI_AP_PASSPHRASE = "Luke, I am your father.";
+static const char DEFAULT_WIFI_AP_PASSPHRASE[] = "Luke, I am your father.";
 
 /**
  * The hostname of the device.
  */
-static String gSettingsHostname               = DEFAULT_HOSTNAME;
+static String gSettingsHostname                = DEFAULT_HOSTNAME;
 
 /**
  * WiFi SSID.
  */
-static String gSettingsWifiSSID               = DEFAULT_WIFI_SSID;
+static String gSettingsWifiSSID                = DEFAULT_WIFI_SSID;
 
 /**
  * WiFi passphrase.
  */
-static String gSettingsWifiPassphrase         = DEFAULT_WIFI_PASSPHRASE;
+static String gSettingsWifiPassphrase          = DEFAULT_WIFI_PASSPHRASE;
 
 /**
  * WiFi Access Point SSID.
  */
-static String gSettingsWifiApSSID             = DEFAULT_WIFI_AP_SSID;
+static String gSettingsWifiApSSID              = DEFAULT_WIFI_AP_SSID;
 
 /**
  * WiFi Access Point passphrase.
  */
-static String gSettingsWifiApPassphrase       = DEFAULT_WIFI_AP_PASSPHRASE;
+static String gSettingsWifiApPassphrase        = DEFAULT_WIFI_AP_PASSPHRASE;
 
 /**
  * Web server instance.
@@ -185,7 +185,7 @@ static WebServer gWebServer(80U);
 /**
  * Current state of the application.
  */
-static State gState = STATE_IDLE;
+static State gState = STATE_INIT;
 
 /**
  * Set access point local address.
@@ -439,8 +439,8 @@ static void stateMachine()
 {
     switch (gState)
     {
-    case STATE_IDLE:
-        stateIdle();
+    case STATE_INIT:
+        stateInit();
         break;
 
     case STATE_STA_SETUP:
@@ -470,10 +470,10 @@ static void stateMachine()
 }
 
 /**
- * State machine function for the idle state.
+ * State machine function for the init state.
  * This is the initial state of the application.
  */
-static void stateIdle()
+static void stateInit()
 {
     if (true == gSettingsWifiSSID.isEmpty())
     {
