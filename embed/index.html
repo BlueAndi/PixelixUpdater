@@ -57,7 +57,7 @@
 
                     <div class="tab-pane fade active show" id="update" role="tabpanel" aria-labelledby="update-tab">
                         <br />
-                        <p>Upload <u>firmware.bin</u> for software update or <u>littlefs.bin</u> for updating the filesystem.</p>
+                        <p>Upload a firmware binary for software update or a filesystem binary for updating the filesystem.</p>
                         <div class="alert alert-warning" role="alert">
                             A filesystem update might cause a loss of all configuration data on the filesystem. Make sure you have a backup of your configuration before updating it. Backups can be done via the webinterface of Pixelix.
                         </div>
@@ -65,11 +65,16 @@
                             A filesystem update will disable the HomeAssistant MQTT discovery feature. After the update, you have to re-enable it manually.
                             This prevents that the welcome plugin will be discovered, after a filesystem update.
                         </div>
-                        <button class="btn btn-primary" type="button" onclick="sendPartitionChangeRequest();">Back to Pixelix</button>
-                        <p>Use multi-select to upload several files at once.</p>
+                        <button class="btn btn-primary extra" type="button" onclick="sendPartitionChangeRequest();">Back to Pixelix</button>
+                        <p>Upload your firmware binary here.</p>
                         <div class="input-group">
-                            <input type="file" class="form-control" id="inputFile" multiple="multiple" accept=".bin">
-                            <button class="btn btn-primary" type="button" onclick="upload();">Upload</button>
+                            <input type="file" class="form-control" id="inputFirmwareFile" accept=".bin">
+                            <button class="btn btn-primary" type="button" onclick="triggerUpload(event);" id="buttonFirmwareUpload">Upload</button>
+                        </div>
+                        <p>Upload your filesystem binary here.</p>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="inputFilesystemFile" accept=".bin">
+                            <button class="btn btn-primary" type="button" onclick="triggerUpload(event);" id="buttonFilesystemUpload">Upload</button>
                         </div>
                         <div class="progress">
                             <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
@@ -151,59 +156,23 @@
                 });
             }
 
-            function upload() {
+            function upload(inputId, fileSizeHeader) {
                 var file        = null;
-                var fileCnt     = document.getElementById("inputFile").files.length;
-                var fileSize    = 0;
-                var index       = 0;
-                var files       = [];
                 var fileParameters  = {};
                 var fileHeaders     = {};
 
-                if (2 < fileCnt) {
-                    fileCnt = 2;
-                }
-
-                /* Filesystem shall always be updated first!
-                 * Otherwise the Home Assistant MQTT discovery feature will stay enabled
-                 */
-                for(index = 0; index < fileCnt; ++index) {
-                    file = document.getElementById("inputFile").files[index];
-
-                    if ("littlefs.bin" === file.name) {
-                        files.push(file);
-                    }
-                }
-
-                for(index = 0; index < fileCnt; ++index) {
-                    file = document.getElementById("inputFile").files[index];
-
-                    if ("firmware.bin" === file.name) {
-
-                        files.push(file);
-                    }
-                }
-
+                file = document.getElementById(inputId).files[0];
                 $("#progressBar").css("width", "0%").attr("aria-valuenow", 0);
 
-                if (0 === files.length) {
-
+                if(file === null){
                     dialog.showWarning("<p>No file selected.</p>");
-
-                } else {
-
+                }
+                else{
                     disableUI();
 
-                    for(index = 0; index < files.length; ++index) {
-                        fileParameters[files[index].name] = files[index];
-
-                        if ("firmware.bin" === files[index].name) {
-                            fileHeaders["X-File-Size-Firmware"] = files[index].size;
-                        } else if ("littlefs.bin" === files[index].name) {
-                            fileHeaders["X-File-Size-Filesystem"] = files[index].size;
-                        }
-                    }
-
+                    fileParameters[file.name] = file;
+                    fileHeaders[fileSizeHeader] = file.size;
+                    
                     utils.makeRequest({
                         method: "POST",
                         url: "/upload.html",
@@ -216,13 +185,32 @@
                         dialog.showError("<p>Error: " + rsp + "</p>")
                     }).finally(function() {
                         enableUI();
+                        updateProgressBar("progressBar", 0);
                     });
                 }
             }
 
+            function triggerUpload(event) {
+                var buttonId = event.target.id
+
+                if(buttonId === "buttonFirmwareUpload") {
+                    upload("inputFirmwareFile", "X-File-Size-Firmware");
+                }
+                else if(buttonId === "buttonFilesystemUpload") {
+                    upload("inputFilesystemFile", "X-File-Size-Filesystem")
+                } 
+            }
+
             /* Execute after page is ready. */
             $(document).ready(function() {
-                $("#inputFile").on("change", function() {
+                $("#inputFirmwareFile").on("change", function() {
+                    var fileName = $(this).val().split("\\").pop();
+                    $(this).next(".custom-file-label").addClass("selected").html(fileName);
+
+                    updateProgressBar("progressBar", 0);
+                });
+
+                $("#inputFilesystemFile").on("change", function() {
                     var fileName = $(this).val().split("\\").pop();
                     $(this).next(".custom-file-label").addClass("selected").html(fileName);
 

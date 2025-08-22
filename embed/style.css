@@ -99,3 +99,11 @@ p.dragableSlot {
     bottom: 0;
     left: 0;
 }
+
+.btn.btn-primary.extra{
+    margin:1rem 0;
+}
+
+.input-group{
+    margin: 0 0 2rem;
+}

@@ -781,12 +781,12 @@ static void handleFileStart(HTTPUpload& upload)
     }
 
     /* Upload firmware or filesystem? */
-    if (upload.filename == FIRMWARE_FILENAME)
+    if (false == gWebServer.header(FIRMWARE_SIZE_HEADER).isEmpty())
     {
         headerXFileSize = gWebServer.header(FIRMWARE_SIZE_HEADER);
         cmd             = U_FLASH;
     }
-    else if (upload.filename == FILESYSTEM_FILENAME)
+    else if (false == gWebServer.header(FILESYSTEM_SIZE_HEADER).isEmpty())
     {
         headerXFileSize = gWebServer.header(FILESYSTEM_SIZE_HEADER);
         cmd             = U_SPIFFS;
