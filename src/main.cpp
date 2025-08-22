@@ -76,23 +76,123 @@ typedef enum
  * Prototypes
  *****************************************************************************/
 
+/**
+ * Load settings from preferences to be used by the application.
+ * If no settings are found, default values will be used.
+ *
+ * The settings are stored in the preferences storage, which is a key-value
+ * storage. The keys are defined by Pixelix!
+ */
 static void loadSettings();
+
+/**
+ * Append device unique ID to string.
+ * The device unique ID is derived from factory programmed wifi MAC address.
+ *
+ * @param[in,out] dst   Destination string to append the device unique id to.
+ */
 static void appendDeviceUniqueId(String& deviceUniqueId);
+
+/**
+ * Get the unique chip id.
+ *
+ * @param[out] chipId   Chip id
+ */
 static void getChipId(String& chipId);
+
+/**
+ * Set the application partition 0 active to be considered as the boot partition.
+ */
 static void setAppPartition0Active();
+
+/**
+ * Setup the web server.
+ */
 static void setupWebServer();
+
+/**
+ * State machine function to handle the current state of the application.
+ * This function is called periodically in the loop() function.
+ */
 static void stateMachine();
+
+/**
+ * State machine function for the init state.
+ * This is the initial state of the application.
+ */
 static void stateInit();
+
+/**
+ * State machine function for the setup of the WiFi station.
+ * This state is entered when the device is not connected to a WiFi network
+ * and needs to setup the WiFi station.
+ */
 static void stateStaSetup();
+
+/**
+ * State machine function for the connecting state.
+ * This state is entered when the wifi station was setup successfully.
+ */
 static void stateStaConnecting();
+
+/**
+ * State machine function for the connected state.
+ * This state is entered when the device is connected to the WiFi network.
+ */
 static void stateStaConnected();
+
+/**
+ * State machine function for the setup of the Access Point.
+ * This state is entered when the device is not connected to a WiFi network
+ * and needs to setup the Access Point.
+ */
 static void stateApSetup();
+
+/**
+ * State machine function for the Access Point up state.
+ * This state is entered when the Access Point is up and running.
+ */
 static void stateApUp();
+
+/**
+ * State machine function for the error state.
+ * This state is entered when an error occurs, e.g. WiFi connection failed.
+ */
 static void stateError();
+
+/**
+ * Handle upload requests.
+ * This function is called when a file is uploaded to the web server.
+ * It sends a response back to the client indicating that the upload was successful.
+ */
 static void handleUpload();
+
+/**
+ * Handle file upload requests.
+ * This function is called when a file is uploaded to the web server.
+ * It logs the upload progress and sends a response back to the client.
+ */
 static void handleFileUpload();
+
+/**
+ * Handle start of a new file during file upload.
+ *
+ * @param[in] upload Reference to the HTTPUpload object containing upload metadata.
+ */
 static void handleFileStart(HTTPUpload& upload);
+
+/**
+ * Handle writing new file data during file upload.
+ *
+ * @param[in] upload Reference to the HTTPUpload object containing upload metadata.
+ */
 static void handleFileWrite(HTTPUpload& upload);
+
+/**
+ * Handle end of a file during file upload.
+ *
+ * @param[in] upload Reference to the HTTPUpload object containing upload metadata.
+ */
 static void handleFileEnd(HTTPUpload& upload);
 
 /******************************************************************************
@@ -662,6 +762,11 @@ static void handleFileUpload()
     }
 }
 
+/**
+ * Handle start of a new file during file upload.
+ *
+ * @param[in] upload Reference to the HTTPUpload object containing upload metadata.
+ */
 static void handleFileStart(HTTPUpload& upload)
 {
     int    cmd      = U_FLASH;
@@ -716,6 +821,11 @@ static void handleFileStart(HTTPUpload& upload)
     }
 }
 
+/**
+ * Handle writing new file data during file upload.
+ *
+ * @param[in] upload Reference to the HTTPUpload object containing upload metadata.
+ */
 static void handleFileWrite(HTTPUpload& upload)
 {
     if (upload.currentSize != Update.write(upload.buf, upload.currentSize))
@@ -731,6 +841,11 @@ static void handleFileWrite(HTTPUpload& upload)
     }
 }
 
+/**
+ * Handle end of a file during file upload.
+ *
+ * @param[in] upload Reference to the HTTPUpload object containing upload metadata.
+ */
 static void handleFileEnd(HTTPUpload& upload)
 {
     if (false == Update.end())
