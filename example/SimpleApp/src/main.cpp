@@ -138,7 +138,7 @@ static const char* KEY_WIFI_AP_SSID           = "ap_ssid";
 static const char* KEY_WIFI_AP_PASSPHRASE     = "ap_passphrase";
 
 /** Hostname default value */
-static const char* DEFAULT_HOSTNAME           = "pixelix";
+static const char* DEFAULT_HOSTNAME           = "SimpleApp";
 
 /** Wifi network default value */
 static const char* DEFAULT_WIFI_SSID          = "";
@@ -147,7 +147,7 @@ static const char* DEFAULT_WIFI_SSID          = "";
 static const char* DEFAULT_WIFI_PASSPHRASE    = "";
 
 /** Wifi Access Point SSID default value */
-static const char* DEFAULT_WIFI_AP_SSID       = "pixelix";
+static const char* DEFAULT_WIFI_AP_SSID       = "SimpleApp";
 
 /** Wifi Access Point passphrase default value */
 static const char* DEFAULT_WIFI_AP_PASSPHRASE = "Luke, I am your father.";

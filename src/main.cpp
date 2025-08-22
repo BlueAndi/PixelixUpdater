@@ -147,7 +147,7 @@ static const char* KEY_WIFI_AP_SSID           = "ap_ssid";
 static const char* KEY_WIFI_AP_PASSPHRASE     = "ap_passphrase";
 
 /** Hostname default value */
-static const char* DEFAULT_HOSTNAME           = "pixelix";
+static const char* DEFAULT_HOSTNAME           = "PixelixUpdater";
 
 /** Wifi network default value */
 static const char* DEFAULT_WIFI_SSID          = "";
@@ -156,7 +156,7 @@ static const char* DEFAULT_WIFI_SSID          = "";
 static const char* DEFAULT_WIFI_PASSPHRASE    = "";
 
 /** Wifi Access Point SSID default value */
-static const char* DEFAULT_WIFI_AP_SSID       = "pixelix";
+static const char* DEFAULT_WIFI_AP_SSID       = "PixelixUpdater";
 
 /** Wifi Access Point passphrase default value */
 static const char* DEFAULT_WIFI_AP_PASSPHRASE = "Luke, I am your father.";
@@ -164,27 +164,27 @@ static const char* DEFAULT_WIFI_AP_PASSPHRASE = "Luke, I am your father.";
 /**
  * The hostname of the device.
  */
-static String gSettingsHostname = DEFAULT_HOSTNAME;
+static String gSettingsHostname               = DEFAULT_HOSTNAME;
 
 /**
  * WiFi SSID.
  */
-static String gSettingsWifiSSID = DEFAULT_WIFI_SSID;
+static String gSettingsWifiSSID               = DEFAULT_WIFI_SSID;
 
 /**
  * WiFi passphrase.
  */
-static String gSettingsWifiPassphrase = DEFAULT_WIFI_PASSPHRASE;
+static String gSettingsWifiPassphrase         = DEFAULT_WIFI_PASSPHRASE;
 
 /**
  * WiFi Access Point SSID.
  */
-static String gSettingsWifiApSSID = DEFAULT_WIFI_AP_SSID;
+static String gSettingsWifiApSSID             = DEFAULT_WIFI_AP_SSID;
 
 /**
  * WiFi Access Point passphrase.
  */
-static String gSettingsWifiApPassphrase = DEFAULT_WIFI_AP_PASSPHRASE;
+static String gSettingsWifiApPassphrase       = DEFAULT_WIFI_AP_PASSPHRASE;
 
 /**
  * Web server instance.
@@ -225,13 +225,13 @@ static const uint16_t DNS_PORT = 53U;
 static DNSServer gDnsServer;
 
 /** Firmware binary filename, used for update. */
-static const char* FIRMWARE_FILENAME   = "firmware.bin";
+static const char* FIRMWARE_FILENAME      = "firmware.bin";
 
 /** Filesystem binary filename, used for update. */
-static const char* FILESYSTEM_FILENAME = "littlefs.bin";
+static const char* FILESYSTEM_FILENAME    = "littlefs.bin";
 
 /** Firmware binary size HTTP request header. */
-static const char* FIRMWARE_SIZE_HEADER = "X-File-Size-Firmware";
+static const char* FIRMWARE_SIZE_HEADER   = "X-File-Size-Firmware";
 
 /** Filesystem binary size HTTP request header.  */
 static const char* FILESYSTEM_SIZE_HEADER = "X-File-Size-Filesystem";
@@ -405,8 +405,8 @@ static void setupOta()
  */
 static void setupWebServer()
 {
-    const char *headerKeys[] = {FIRMWARE_SIZE_HEADER, FILESYSTEM_SIZE_HEADER};
-    size_t keyCount = sizeof(headerKeys) / sizeof(headerKeys[0]);
+    const char* headerKeys[] = { FIRMWARE_SIZE_HEADER, FILESYSTEM_SIZE_HEADER };
+    size_t      keyCount     = sizeof(headerKeys) / sizeof(headerKeys[0]);
 
     /* Start the web server, before configuration! */
     gWebServer.begin();
