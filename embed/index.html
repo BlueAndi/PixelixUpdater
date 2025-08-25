@@ -156,36 +156,67 @@
                 });
             }
 
+            /* Check if a file fits into the filesystem or firmware partition depending on the header. X-File-Size-Firmware for firmware partition and X-File-Size-Filesystem to check for the filesystem partition. */
+            function partitionSizeCheck(fileHeader, fileSize) {
+                    var headers = {};
+                    headers[fileHeader] = 0;
+
+                    return utils.makeRequest({
+                        method: "GET",
+                        url: "/partition-size",
+                        headers: headers,
+                    }).then(function(rsp) {
+                        var size = parseInt(rsp, 10);
+
+                        if (fileSize > size) {
+                            dialog.showError("File is too big for partition of size " + size + "B!");
+                            return false;
+                        } else {
+                            return true;
+                        }
+                    }).catch(function(rsp) {
+                        dialog.showError("<p>Error: " + rsp + "</p>");
+                        return false;
+                    });
+                }
+
             function upload(inputId, fileSizeHeader) {
                 var file        = null;
                 var fileParameters  = {};
                 var fileHeaders     = {};
+                var input = document.getElementById(inputId);
 
-                file = document.getElementById(inputId).files[0];
                 $("#progressBar").css("width", "0%").attr("aria-valuenow", 0);
 
-                if(file === null){
+                if(0 === input.files.length){
                     dialog.showWarning("<p>No file selected.</p>");
                 }
                 else{
                     disableUI();
 
+                    file = input.files[0];
                     fileParameters[file.name] = file;
                     fileHeaders[fileSizeHeader] = file.size;
-                    
-                    utils.makeRequest({
-                        method: "POST",
-                        url: "/upload.html",
-                        parameter: fileParameters,
-                        headers: fileHeaders,
-                        onProgress: updateProgressUpdate
-                    }).then(function(rsp) {
-                        dialog.showInfo("<p>Upload successful.</p>")
-                    }).catch(function(rsp) {
-                        dialog.showError("<p>Error: " + rsp + "</p>")
-                    }).finally(function() {
-                        enableUI();
-                        updateProgressBar("progressBar", 0);
+
+                    partitionSizeCheck(fileSizeHeader, file.size).then(function(success) {
+                        if (success) {
+                            utils.makeRequest({
+                                method: "POST",
+                                url: "/upload.html",
+                                parameter: fileParameters,
+                                headers: fileHeaders,
+                                onProgress: updateProgressUpdate
+                            }).then(function(rsp) {
+                                dialog.showInfo("<p>Upload successful.</p>")
+                            }).catch(function(rsp) {
+                                dialog.showError("<p>Error: " + rsp + "</p>")
+                            }).finally(function() {
+                                updateProgressBar("progressBar", 0);
+                                enableUI();
+                            });
+                        } else {
+                            enableUI();
+                        }
                     });
                 }
             }

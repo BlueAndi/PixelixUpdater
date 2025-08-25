@@ -258,7 +258,7 @@ static const char DEFAULT_WIFI_SSID[]          = "";
 static const char DEFAULT_WIFI_PASSPHRASE[]    = "";
 
 /** Wifi Access Point SSID default value */
-static const char DEFAULT_WIFI_AP_SSID[]       = "PixelixUpdater";
+static const char DEFAULT_WIFI_AP_SSID[]       = "pixelix";
 
 /** Wifi Access Point passphrase default value */
 static const char DEFAULT_WIFI_AP_PASSPHRASE[] = "Luke, I am your father.";
@@ -522,6 +522,44 @@ static void setupWebServer()
     });
 
     gWebServer.on("/upload.html", HTTP_POST, handleUpload, handleFileUpload);
+
+    gWebServer.on("/partition-size", HTTP_GET, []() {
+        uint32_t size = 0U;
+
+        /* Firmware or filesystem? */
+        if (false == gWebServer.header(FIRMWARE_SIZE_HEADER).isEmpty())
+        {
+            const esp_partition_t* partition = esp_partition_find_first(esp_partition_type_t::ESP_PARTITION_TYPE_APP, esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_APP_OTA_0, nullptr);
+
+            if (nullptr != partition)
+            {
+                size = partition->size;
+            }
+        }
+        else if (false == gWebServer.header(FILESYSTEM_SIZE_HEADER).isEmpty())
+        {
+            const esp_partition_t* partition = esp_partition_find_first(esp_partition_type_t::ESP_PARTITION_TYPE_DATA, esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_DATA_SPIFFS, nullptr);
+
+            if (nullptr != partition)
+            {
+                size = partition->size;
+            }
+        }
+        else
+        {
+            /* Unknown. */
+            ;
+        }
+
+        if (0U != size)
+        {
+            gWebServer.send(200, "text/plain", String(size));
+        }
+        else
+        {
+            gWebServer.send(500, "text/plain", "Partition not found!");
+        }
+    });
 
     EmbeddedFiles_setup(gWebServer);
 }

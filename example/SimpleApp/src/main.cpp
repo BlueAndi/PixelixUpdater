@@ -212,7 +212,7 @@ static const char DEFAULT_WIFI_SSID[]          = "";
 static const char DEFAULT_WIFI_PASSPHRASE[]    = "";
 
 /** Wifi Access Point SSID default value */
-static const char DEFAULT_WIFI_AP_SSID[]       = "SimpleApp";
+static const char DEFAULT_WIFI_AP_SSID[]       = "pixelix";
 
 /** Wifi Access Point passphrase default value */
 static const char DEFAULT_WIFI_AP_PASSPHRASE[] = "Luke, I am your father.";
