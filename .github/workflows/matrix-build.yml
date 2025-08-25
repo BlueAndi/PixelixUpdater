@@ -3,8 +3,6 @@ name: matrix-build
 # Controls when the action will run.
 on:
   push:
-    branches-ignore:
-      -main
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel.
 jobs:
@@ -67,7 +65,7 @@ jobs:
         pip install --upgrade platformio
 
     - name: Create release artifcats folder
-      if: startsWith(github.ref_type, 'refs/tags/v')
+      if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
       run: |
         mkdir ${{ github.workspace }}/artifacts
 
@@ -75,7 +73,7 @@ jobs:
       run: platformio run --environment ${{ matrix.environment }}
 
     - name: Deploy ${{ matrix.environment }}
-      if: startsWith(github.ref_type, 'refs/tags/v')
+      if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.environment }}
