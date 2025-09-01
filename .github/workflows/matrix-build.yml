@@ -1,4 +1,4 @@
-name: main
+name: matrix-build
 
 # Controls when the action will run.
 on:
