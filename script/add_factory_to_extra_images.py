@@ -1,7 +1,7 @@
 """
 This script adds a factory binary to FLASH_EXTRA_IMAGES with the offset defined in the 
 partition table. This way the factory binary will be flashed together with the firmware 
-binary during the upload process. Must be done before building the firmware.
+binary during the upload process.
 """
 
 # MIT License
