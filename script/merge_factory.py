@@ -29,9 +29,9 @@ This script merges factory.bin and firmware.bin into merged-firmware.bin before 
 ################################################################################
 # Imports
 ################################################################################
+
 import os
 import sys
-
 Import("env")  # pylint: disable=undefined-variable
 
 ################################################################################
@@ -40,6 +40,11 @@ Import("env")  # pylint: disable=undefined-variable
 
 FACTORY_PROGNAME = "factory"
 MERGE_PROGNAME = "merged-firmware"
+PLATFORM = env.PioPlatform() # pylint: disable=undefined-variable
+
+# Get project and build directories from the environment.
+PROJECT_DIR = env.subst("$PROJECT_DIR") # pylint: disable=undefined-variable
+BUILD_DIR = env.subst("$BUILD_DIR") # pylint: disable=undefined-variable
 
 ################################################################################
 # Classes
@@ -57,7 +62,7 @@ def get_partition_table(env):
         env: The environment object containing project and build directories.
     
     Returns:
-        A list of partitions defined in the partition table CSV file.
+        List[Dict[str, str]]: A list of partitions defined in the partition table CSV file.
     """
     partition_table = []
     partition_table_file_name = env.get("PARTITIONS_TABLE_CSV")
@@ -123,17 +128,15 @@ def merge_factory(target, source, env): # pylint: disable=unused-argument
     """
     print("\nMerging factory and firmware binaries ...")
 
-    # Get project and build directories from the environment.
-    project_dir = env.subst("$PROJECT_DIR")
-    build_dir = env.subst("$BUILD_DIR")
+    # Get program name from the environment
     program_name = env.subst("$PROGNAME")
 
     # Define paths for factory, application, and merged images.
-    factory_image = os.path.join(project_dir, f"{FACTORY_PROGNAME}.bin")
-    app_image = os.path.join(build_dir, f"{program_name}.bin")
-    merged_image = os.path.join(build_dir, f"{MERGE_PROGNAME}.bin")
+    factory_image = os.path.join(PROJECT_DIR, f"{FACTORY_PROGNAME}.bin")
+    app_image = os.path.join(BUILD_DIR, f"{program_name}.bin")
+    merged_image = os.path.join(BUILD_DIR, f"{MERGE_PROGNAME}.bin")
 
-    # Get offse for factory and application images from partition table.
+    # Get offset for factory and application images from partition table.
     partition_table = get_partition_table(env)
 
     factory_offset = 0
@@ -157,12 +160,19 @@ def merge_factory(target, source, env): # pylint: disable=unused-argument
     show_section_info(sections)
     print("\n")
 
-    # Find the esptool command description here:
-    # https://docs.espressif.com/projects/esptool/en/latest/esp32/esptool/basic-commands.html#merge-bin
-    cmd = f"esptool.py --chip {chip} merge_bin -o {merged_image} {' '.join(sections)}"
+    # Get path to esptool.py
+    tool_dir = PLATFORM.get_package_dir("tool-esptoolpy")
+    esptool_path = os.path.join(tool_dir, "esptool.py")
 
-    print(f"Executing command: {cmd}")
-    env.Execute(cmd)
+    if tool_dir is None:
+        print("Package tool-esptoolpy could not be found!")
+    else:
+        # Find the esptool command description here:
+        # https://docs.espressif.com/projects/esptool/en/latest/esp32/esptool/basic-commands.html#merge-bin
+        cmd = f"python {esptool_path} --chip {chip} merge_bin -o {merged_image} {' '.join(sections)}"
+
+        print(f"Executing command: {cmd}")
+        env.Execute(cmd)
 
 def change_progname(target, source, env): # pylint: disable=unused-argument
     """
@@ -176,9 +186,37 @@ def change_progname(target, source, env): # pylint: disable=unused-argument
     env.Replace(PROGNAME=MERGE_PROGNAME)  # pylint: disable=undefined-variable
     print(f"Changed program name to {MERGE_PROGNAME} for upload.")
 
+def replace_firmware(target, source, env): # pylint: disable=unused-argument
+    """
+    Replace the firmware.bin of the app partition with the merged-firmware.bin created in merge_factory.
+    
+    Args:
+        target: The target files (not used in this function).
+        source: The source files (not used in this function).
+        env: The environment object containing project and build directories (not used in this function).
+    """
+
+    # Define paths for firmware.bin and the binary it will be replaced by
+    old_firmware_image = os.path.join(BUILD_DIR, "firmware.bin")
+    new_firmware_image = os.path.join(BUILD_DIR, f"{MERGE_PROGNAME}.bin")
+
+    if not os.path.exists(new_firmware_image):
+        print(f"New firmware not found: {new_firmware_image}")
+        return
+    
+    if os.path.exists(old_firmware_image):
+        os.remove(old_firmware_image)
+        print(f"Removed old firmware: {old_firmware_image}")
+    else:
+        print("No old firmware found to remove.")
+
+    os.rename(new_firmware_image, old_firmware_image)
+    print("Replaced firmware successfully!")
+
 ################################################################################
 # Main
 ################################################################################
 
 env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", merge_factory) # pylint: disable=undefined-variable
 env.AddPreAction("upload", change_progname)  # pylint: disable=undefined-variable
+#env.AddPreAction("upload", replace_firmware)
