@@ -48,8 +48,12 @@ Install the necessary toolchain. To do that you can follow the installation guid
 ```bash
 $ git clone https://github.com/BlueAndi/PixelixUpdater.git
 ```
- to clone the repository of the PixelixUpdater. 
- Now open the repository with VSCode. If you have successfully done that you can keep following the guide to build the PixelixUpdater binary. If you want to test the OTA-Update process with the SimpleApp you have to open the example\SimpleApp directory in VSCode. At first make sure the factory_binaries directory contains a binary that matches your board. This should be the case by default. If such a binary exists press the upload button of the PlatfromIO toolbar(to get to the toolbar click on the head of the ant in the left column) to upload the SimpleApp and PixelixUpdater binaries together. If the binary is not available you can build it yourself like previously explained, then copy the binary into the factory_binaries directory.
+to clone the repository of the PixelixUpdater. 
+Now open the repository in VSCode. If you have done this successfully, you can continue following the guide to build the PixelixUpdater binary.
+If you want to test the OTA update process using the SimpleApp, open the `example/SimpleApp` directory in VSCode.
+First, make sure that the `factory_binaries` directory contains a binary that matches your board. This should be the case by default. 
+If such a binary exists, press the **Upload** button in the PlatformIO toolbar (to access the toolbar, click on the ant head icon in the left sidebar) to upload both the SimpleApp and PixelixUpdater binaries.
+If the binary is not available, you can build it yourself as described in the guide. After building the binary, copy it into the `factory_binaries` directory.
 
 ## Used Libraries
 
