@@ -14,6 +14,7 @@ The Pixelix updater application is flashed to a factory partition and provides t
 - [PixelixUpdater webinterface](#pixelixupdater-webinterface)
 - [Example App](#example-app)
 - [How To Get Started](#how-to-get-started)
+- [How To Update The PixelixUpdater When A New Release Is Available](#how-to-update-the-pixelixupdater-when-a-new-release-is-available)
 - [Used Libraries](#used-libraries)
 - [Issues, Ideas And Bugs](#issues-ideas-and-bugs)
 - [License](#license)
@@ -54,6 +55,14 @@ If you want to test the OTA update process using the SimpleApp, open the `exampl
 First, make sure that the `factory_binaries` directory contains a binary that matches your board. This should be the case by default. 
 If such a binary exists, press the **Upload** button in the PlatformIO toolbar (to access the toolbar, click on the ant head icon in the left sidebar) to upload both the SimpleApp and PixelixUpdater binaries.
 If the binary is not available, you can build it yourself as described in the guide. After building the binary, copy it into the `factory_binaries` directory.
+
+## How To Update The PixelixUpdater When A New Release Is Available
+
+Just like the SimpleApp, Pixelix includes a `factory_binaries` directory.
+To integrate a new release of PixelixUpdater into Pixelix, simply replace the existing binaries in the `factory_binaries` directory with the updated ones from the latest release.
+Each release includes a ZIP file as an asset, which contains the PixelixUpdater binaries for all supported boards. If you have successfully replaced the binaries, you need to flash Pixelix by pressing the Upload button of the PlatformIO toolbar (you can access the toolbar by clicking the ant head icon in the left sidebar). This will flash both Pixelix and the PixelixUpdater together. 
+
+Please note: the PixelixUpdater cannot be flashed via OTA update.
 
 ## Used Libraries
 
