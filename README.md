@@ -24,7 +24,7 @@ The Pixelix updater application is flashed to a factory partition and provides t
 ## Motivation
 
 Pixelix grew over time with more and more features. Even more as fit into a a 4 MB flash development board. Initially, some features were disabled to save space. But meanwhile with Arduino 3.x the amount of required flash space with OTA support wasn't enough anymore.
-The idea raised up to use just one application partition and a small factory partition. This way the application partition size increases and gives the possibility to continue with Arduino 3.x and to support more features again.
+The idea was raised to use only one application partition along with a small factory partition, unlike the standard OTA configuration defined by Espressif, which uses two application partitions (https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html). This way the application partition size increases and gives the possibility to continue with Arduino 3.x and to support more features again.
 
 ## How It Works
 
