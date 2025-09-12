@@ -73,6 +73,18 @@ typedef enum
 } State;
 
 /**
+ * Result of setting boot partition.
+ */
+typedef enum
+{
+    BOOT_SUCCESS,
+    BOOT_PARTITION_NOT_FOUND,
+    BOOT_SET_FAILED,
+    BOOT_UNKNOWN_ERROR
+
+} BootPartitionResult;
+
+/**
  * This type defines supported HTTP response status codes according to RFC7231.
  */
 enum HTTPStatusCode
@@ -166,9 +178,11 @@ static void appendDeviceUniqueId(String& deviceUniqueId);
 static void getChipId(String& chipId);
 
 /**
- * Set the factory partition active to be considered as the boot partition.
+ * Set the factory partition active to be the next boot partition.
+ *
+ * @return BootPartitionResult indicating wether factory was set as boot partition successfully or not.
  */
-static void setFactoryPartitionActive();
+static BootPartitionResult setFactoryAsBootPartition();
 
 /**
  * Setup the web server.
@@ -493,11 +507,16 @@ static void getChipId(String& chipId)
 }
 
 /**
- * Set the factory partition active to be considered as the boot partition.
+ * Set the factory partition active to be the next boot partition.
+ *
+ * @return BootPartitionResult indicating wether factory was set as boot partition successfully or not.
  */
-static void setFactoryPartitionActive()
+static BootPartitionResult setFactoryAsBootPartition()
 {
-    const esp_partition_t* partition = esp_partition_find_first(
+    BootPartitionResult    result    = BOOT_UNKNOWN_ERROR;
+    const esp_partition_t* partition = nullptr;
+
+    partition                        = esp_partition_find_first(
         esp_partition_type_t::ESP_PARTITION_TYPE_APP,
         esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_APP_FACTORY,
         nullptr);
@@ -505,14 +524,25 @@ static void setFactoryPartitionActive()
     if (nullptr != partition)
     {
         esp_err_t err = esp_ota_set_boot_partition(partition);
-
         ESP_LOGI(LOG_TAG, "Setting factory partition '%s' as boot partition", partition->label);
 
         if (ESP_OK != err)
         {
             ESP_LOGE(LOG_TAG, "Failed to set factory partition '%s' as boot partition: %d", partition->label, err);
+            result = BOOT_SET_FAILED;
+        }
+        else
+        {
+            result = BOOT_SUCCESS;
         }
     }
+    else
+    {
+        ESP_LOGE(LOG_TAG, "Factory partition '%s' not found!", partition->label);
+        result = BOOT_PARTITION_NOT_FOUND;
+    }
+
+    return result;
 }
 
 /**
@@ -547,10 +577,30 @@ static void setupWebServer()
     });
 
     gWebServer.on("/change-partition", HTTP_GET, []() {
-        gWebServer.send(STATUS_CODE_OK, "text/plain", "Restart initiated!");
-        setFactoryPartitionActive();
-        delay(1000);
-        ESP.restart();
+        switch (setFactoryAsBootPartition())
+        {
+        case BOOT_SUCCESS: {
+            const uint32_t RESTART_DELAY = 100U; /* ms */
+
+            gWebServer.send(STATUS_CODE_OK, "text/plain", "Partition switched. Restarting...");
+
+            /* To ensure that a positive response will be sent before the device restarts,
+             * a short delay is necessary.
+             */
+            delay(RESTART_DELAY);
+            ESP.restart();
+            break;
+        }
+        case BOOT_PARTITION_NOT_FOUND:
+            gWebServer.send(STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Factory partition not found!");
+            break;
+        case BOOT_SET_FAILED:
+            gWebServer.send(STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Failed to set factory partition as boot partition!");
+            break;
+        case BOOT_UNKNOWN_ERROR:
+            gWebServer.send(STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Cannot switch to factory partition. Error unknown!");
+            break;
+        }
     });
 
     /* Serve files with static content. */
