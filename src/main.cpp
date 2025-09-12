@@ -951,6 +951,26 @@ static void handleFileStart(HTTPUpload& upload)
     }
     else if (false == gWebServer.header(FILESYSTEM_SIZE_HEADER).isEmpty())
     {
+        Preferences preferences;
+
+        /* Open Preferences with namespace. Each application module, library, etc
+         * has to use a namespace name to prevent key name collisions. We will open storage in
+         * RW-mode (second parameter has to be false).
+         * Note: Namespace name is limited to 15 chars.
+         */
+        bool status = preferences.begin(PREF_NAMESPACE, true);
+
+        /* Settings found? */
+        if (true == status)
+        {
+            /* Disable HomeAssistant MQTT automatic discovery to avoid that the welcome plugin of Pixelix
+             * will be discovered, after a filesystem update.
+             */
+            preferences.putBool("ha_ena", false);
+        }
+
+        preferences.end();
+
         headerXFileSize = gWebServer.header(FILESYSTEM_SIZE_HEADER);
         cmd             = U_SPIFFS;
     }
