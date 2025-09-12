@@ -29,7 +29,7 @@ jobs:
       matrix:
         environment:
           - adafruit_feather_esp32_v2-factory
-          #- adafruit_matrixportal_s3-factory
+          - adafruit_matrixportal_s3-factory
           - az-delivery-devkit-v4-factory
           - esp32doit-devkit-v1-factory
           - esp32-s3-devkitc-1-n16r8v-factory
