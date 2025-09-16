@@ -59,6 +59,7 @@ First, make sure that the `factory_binaries` folder contains a binary that match
 
 Each release of the PixelixUpdater includes a ZIP file as an asset, which contains the PixelixUpdater binaries for all supported boards. Download this ZIP file and copy the binaries into the `factory_binaries` folder.
 To upload both the SimpleApp and PixelixUpdater binaries press the **Upload** button matching your board in the PlatformIO toolbar (to access the toolbar, click on the ant head icon in the left sidebar).
+After booting your board will spawn an Access Point. The password for the Access Point will be: Luke, I am your father.
 
 ![](doc/images/upload_button.png)
 

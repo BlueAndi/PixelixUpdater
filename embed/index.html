@@ -61,17 +61,13 @@
                         <div class="alert alert-warning" role="alert">
                             A filesystem update might cause a loss of all configuration data on the filesystem. Make sure you have a backup of your configuration before updating it. Backups can be done via the webinterface of Pixelix.
                         </div>
-                        <div class="alert alert-warning" role="alert">
-                            A filesystem update will disable the HomeAssistant MQTT discovery feature. After the update, you have to re-enable it manually.
-                            This prevents that the welcome plugin will be discovered, after a filesystem update.
-                        </div>
                         <button class="btn btn-primary extra" type="button" onclick="sendPartitionChangeRequest();">Back to Pixelix</button>
-                        <p>Upload your pixelix firmware here.</p>
+                        <p>Select your pixelix firmware binary here.</p>
                         <div class="input-group">
                             <input type="file" class="form-control" id="inputFirmwareFile" accept=".bin">
                             <button class="btn btn-primary" type="button" onclick="triggerUpload(event);" id="buttonFirmwareUpload">Upload</button>
                         </div>
-                        <p>Upload your filesystem binary here.</p>
+                        <p>Select your filesystem binary here.</p>
                         <div class="input-group">
                             <input type="file" class="form-control" id="inputFilesystemFile" accept=".bin">
                             <button class="btn btn-primary" type="button" onclick="triggerUpload(event);" id="buttonFilesystemUpload">Upload</button>
