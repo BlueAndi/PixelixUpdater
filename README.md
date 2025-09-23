@@ -70,9 +70,9 @@ Just like the SimpleApp, Pixelix includes a `factory_binaries` folder.
 ![](doc/images/factory_binaries_folder_pixelix.png)
 
 Each release of the Pixelix Updater includes a ZIP file as an asset, which contains the PixelixUpdater binaries for all supported boards. Download this ZIP file and copy the binaries into the `factory_binaries` folder of Pixelix.
-To update the Updater press the **Upload** button as shown above. This will upload the Updater together with the Pixelix firmware. 
+To update the Updater press the **Upload** button as shown above. This will upload the Updater together with the Pixelix firmware. After flashing the Updater and the application as described, the board will always boot from the application partition. This is, for example, the case after erasing the flash memory.
 
-Please note: the PixelixUpdater cannot be flashed via OTA update.
+Please note: The PixelixUpdater cannot be flashed via OTA update.
 
 ## How To Update The PixelixUpdater
 
