@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+        <!-- Styles -->
+        <link rel="stylesheet" type="text/css" href="bootstrap.min.css" />
+        <link rel="stylesheet" type="text/css" href="sticky-footer-navbar.css" />
+        <link rel="stylesheet" type="text/css" href="style.css" />
+
+        <title>PIXELIX Updater</title>
+        <link rel="shortcut icon" type="image/png" href="favicon.png" />
+    </head>
+    <body class="d-flex flex-column h-100">
+        <header>
+            <!-- Fixed navbar -->
+            <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+                <a class="navbar-brand" href="index.html">
+                    <img src="LogoSmall.png" alt="PIXELIX" />
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarCollapse">
+                    <ul class="navbar-nav mr-auto" id="menu">
+                    </ul>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Begin page content -->
+        <main role="main" class="flex-shrink-0">
+            <!-- Dialog -->
+            <div class="modal fade" id="modalDialog" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true" data-bs-keyboard="false" data-bs-backdrop="static">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header" id="dialogHeader">
+                            <h5 class="modal-title" id="dialogTitle"></h5>
+                        </div>
+                        <div class="modal-body" id="dialogBody">
+                        </div>
+                        <div class="modal-footer" id="dialogFooter">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Main view -->
+            <div class="container">
+                <h1 class="mt-5">Update</h1>
+
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item" role="presentation"><a class="nav-link active" id="update-tab" data-bs-toggle="tab" role="tab" href="#update"  aria-controls="update" aria-selected="true">Update</a></li>
+                </ul>
+
+                <div class="tab-content" id="myTabContent">
+
+                    <div class="tab-pane fade active show" id="update" role="tabpanel" aria-labelledby="update-tab">
+                        <br />
+                        <p>Upload a pixelix firmware for software update or a filesystem binary for updating the filesystem.</p>
+                        <div class="alert alert-warning" role="alert">
+                            A filesystem update might cause a loss of all configuration data on the filesystem. Make sure you have a backup of your configuration before updating it. Backups can be done via the webinterface of Pixelix.
+                        </div>
+                        <button class="btn btn-primary extra" type="button" onclick="sendPartitionChangeRequest();">Back to Pixelix</button>
+                        <p>Select your pixelix firmware binary here.</p>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="inputFirmwareFile" accept=".bin">
+                            <button class="btn btn-primary" type="button" onclick="triggerUpload(event);" id="buttonFirmwareUpload">Upload</button>
+                        </div>
+                        <p>Select your filesystem binary here.</p>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="inputFilesystemFile" accept=".bin">
+                            <button class="btn btn-primary" type="button" onclick="triggerUpload(event);" id="buttonFilesystemUpload">Upload</button>
+                        </div>
+                        <div class="progress">
+                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer mt-auto py-3">
+            <div class="container">
+                <hr />
+                <span class="text-secondary">Copyright (c) 2019 - 2025 (web@blue-andi.de)</span><br />
+                <span class="text-secondary"><a href="https://github.com/BlueAndi/Pixelix/blob/master/LICENSE">MIT License</a></span>
+            </div>
+        </footer>
+
+        <!-- jQuery, and Bootstrap JS bundle -->
+        <script type="text/javascript" src="jquery-3.7.1.slim.min.js"></script>
+        <script type="text/javascript" src="bootstrap.bundle.min.js"></script>
+        <!-- Pixelix utilities -->
+        <script type="text/javascript" src="utils.js"></script>
+        <script type="text/javascript" src="dialog.js"></script>
+
+        <!-- Custom javascript -->
+        <script>
+
+            /* Disable all UI elements. */
+            function disableUI() {
+                $("main :button").prop("disabled", true);
+            }
+
+            /* Enable all UI elements. */
+            function enableUI() {
+                $("main :button").prop("disabled", false);
+            }
+
+            function updateProgressBar(id, progress) {
+                $("#" + id).css("width", progress + "%").attr("aria-valuenow", progress);
+                $("#" + id).text(progress + "%");
+            }
+
+            function updateProgressUpdate(evt) {
+                var progress = 0;
+
+                if (true === evt.lengthComputable) {
+                    progress = (evt.loaded * 100 / evt.total).toFixed();
+                }
+
+                updateProgressBar("progressBar", progress);
+            }
+
+            /* Request change of active partition. */
+            function sendPartitionChangeRequest() {
+                disableUI();
+
+                utils.makeRequest({
+                    method: "GET",
+                    url: "/change-partition",
+                }).then(function(rsp) {
+                    let seconds = 20;
+                    dialog.showInfo(`<p>Reload in ${seconds}s</p>`);
+
+                    const intervalId = setInterval(() => {
+                        seconds--;
+                        if (seconds > 0) {
+                            dialog.showInfo(`<p>Reload in ${seconds}s</p>`);
+                        } else {
+                            clearInterval(intervalId);
+                            location.reload();
+                        }
+                    }, 1000);
+                }).catch(function(rsp) {
+                    dialog.showError("<p>Error: " + rsp + "</p>")
+                    enableUI();
+                });
+            }
+
+            /* Check if a file fits into the filesystem or firmware partition depending on the header. X-File-Size-Firmware for firmware partition and X-File-Size-Filesystem to check for the filesystem partition. */
+            function partitionSizeCheck(fileHeader, fileSize) {
+                    var headers = {};
+                    headers[fileHeader] = 0;
+
+                    return utils.makeRequest({
+                        method: "GET",
+                        url: "/partition-size",
+                        headers: headers,
+                    }).then(function(rsp) {
+                        var size = parseInt(rsp, 10);
+
+                        if (fileSize > size) {
+                            if("X-File-Size-Firmware" === fileHeader) {
+                                dialog.showError("File is too big for firmware partition(ota0) of size " + size + "B!");
+                            }
+                            else if("X-File-Size-Filesystem" === fileHeader) {
+                                dialog.showError("File is too big for filesystem partition of size " + size + "B!");
+                            }
+                            
+                            return false;
+                        } else {
+                            return true;
+                        }
+                    }).catch(function(rsp) {
+                        dialog.showError("<p>Error: " + rsp + "</p>");
+                        return false;
+                    });
+                }
+
+            function upload(inputId, fileSizeHeader) {
+                var file        = null;
+                var fileParameters  = {};
+                var fileHeaders     = {};
+                var input = document.getElementById(inputId);
+
+                $("#progressBar").css("width", "0%").attr("aria-valuenow", 0);
+
+                if(0 === input.files.length){
+                    dialog.showWarning("<p>No file selected.</p>");
+                }
+                else{
+                    disableUI();
+
+                    file = input.files[0];
+                    fileParameters[file.name] = file;
+                    fileHeaders[fileSizeHeader] = file.size;
+
+                    partitionSizeCheck(fileSizeHeader, file.size).then(function(success) {
+                        if (success) {
+                            utils.makeRequest({
+                                method: "POST",
+                                url: "/upload.html",
+                                parameter: fileParameters,
+                                headers: fileHeaders,
+                                onProgress: updateProgressUpdate
+                            }).then(function(rsp) {
+                                dialog.showInfo("<p>Upload successful.</p>")
+                            }).catch(function(rsp) {
+                                dialog.showError("<p>Error: " + rsp + "</p>")
+                            }).finally(function() {
+                                updateProgressBar("progressBar", 0);
+                                enableUI();
+                            });
+                        } else {
+                            enableUI();
+                        }
+                    });
+                }
+            }
+
+            function triggerUpload(event) {
+                var buttonId = event.target.id
+
+                if(buttonId === "buttonFirmwareUpload") {
+                    upload("inputFirmwareFile", "X-File-Size-Firmware");
+                }
+                else if(buttonId === "buttonFilesystemUpload") {
+                    upload("inputFilesystemFile", "X-File-Size-Filesystem")
+                } 
+            }
+
+            /* Execute after page is ready. */
+            $(document).ready(function() {
+                $("#inputFirmwareFile").on("change", function() {
+                    var fileName = $(this).val().split("\\").pop();
+                    $(this).next(".custom-file-label").addClass("selected").html(fileName);
+
+                    updateProgressBar("progressBar", 0);
+                });
+
+                $("#inputFilesystemFile").on("change", function() {
+                    var fileName = $(this).val().split("\\").pop();
+                    $(this).next(".custom-file-label").addClass("selected").html(fileName);
+
+                    updateProgressBar("progressBar", 0);
+                });
+            });
+        </script>
+    </body>
+</html>
