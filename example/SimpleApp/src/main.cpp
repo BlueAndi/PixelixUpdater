@@ -538,7 +538,7 @@ static BootPartitionResult setFactoryAsBootPartition()
     }
     else
     {
-        ESP_LOGE(LOG_TAG, "Factory partition '%s' not found!", partition->label);
+        ESP_LOGE(LOG_TAG, "Factory partition not found!");
         result = BOOT_PARTITION_NOT_FOUND;
     }
 
