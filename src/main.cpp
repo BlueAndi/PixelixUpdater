@@ -585,7 +585,7 @@ static BootPartitionResult setAppPartition0AsBootPartition()
     }
     else
     {
-        ESP_LOGE(LOG_TAG, "App0 partition '%s' not found!", partition->label);
+        ESP_LOGE(LOG_TAG, "App0 partition not found!");
         result = BOOT_PARTITION_NOT_FOUND;
     }
 
