@@ -25,6 +25,7 @@
  *  DESCRIPTION
  ******************************************************************************/
 /**
+ * @file   main.cpp
  * @brief  Main entry point
  * @author Andreas Merkle <web@blue-andi.de>
  */
