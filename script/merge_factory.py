@@ -169,7 +169,13 @@ def merge_factory(target, source, env): # pylint: disable=unused-argument
     else:
         # Find the esptool command description here:
         # https://docs.espressif.com/projects/esptool/en/latest/esp32/esptool/basic-commands.html#merge-bin
-        cmd = f"python {esptool_path} --chip {chip} merge_bin -o {merged_image} {' '.join(sections)}"
+        cmd = (
+            f"python {esptool_path} "
+            f"--chip {chip} "
+            f"merge_bin "
+            f"-o {merged_image} "
+            f"{' '.join(sections)}"
+        )
 
         print(f"Executing command: {cmd}")
         env.Execute(cmd)
@@ -188,12 +194,14 @@ def change_progname(target, source, env): # pylint: disable=unused-argument
 
 def replace_firmware(target, source, env): # pylint: disable=unused-argument
     """
-    Replace the firmware.bin of the app partition with the merged-firmware.bin created in merge_factory.
+    Replace the firmware.bin of the app partition with the merged-firmware.bin
+    created in merge_factory.
     
     Args:
         target: The target files (not used in this function).
         source: The source files (not used in this function).
-        env: The environment object containing project and build directories (not used in this function).
+        env: The environment object containing project and build directories
+             (not used in this function).
     """
 
     # Define paths for firmware.bin and the binary it will be replaced by

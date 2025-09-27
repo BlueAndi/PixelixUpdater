@@ -113,11 +113,10 @@ def get_factory_image() -> Optional[str]:
 
     return None
 
-################################################################################
-# Main
-################################################################################
-
-if "upload" in sys.argv:
+def handle_upload() -> None:
+    """
+    Handle the upload process by adding the factory binary to FLASH_EXTRA_IMAGES.
+    """
     factory_image = get_factory_image()
     partition_table = get_partition_table(env) # pylint: disable=undefined-variable
     factory_offset = 0
@@ -135,6 +134,14 @@ if "upload" in sys.argv:
                 ]
             )
         else:
-            raise Exception(f"No offset found for partition: {FACTORY_PARTITION_NAME}!")
+            raise ValueError(f"No offset found for partition: {FACTORY_PARTITION_NAME}!")
     else:
-        raise Exception("No factory image found!")
+        raise FileNotFoundError("No factory image found!")
+
+
+################################################################################
+# Main
+################################################################################
+
+if "upload" in sys.argv:
+    handle_upload()
