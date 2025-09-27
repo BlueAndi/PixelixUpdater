@@ -24,50 +24,52 @@ The Pixelix updater application is flashed to a factory partition and provides t
 ## Motivation
 
 Pixelix grew over time with more and more features. Even more as fit into a a 4 MB flash development board. Initially, some features were disabled to save space. But meanwhile with Arduino 3.x the amount of required flash space with OTA support wasn't enough anymore.
-The idea was raised to use only one application partition along with a small factory partition, unlike the standard OTA configuration defined by Espressif, which uses two application partitions (https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html). This way the application partition size increases and gives the possibility to continue with Arduino 3.x and to support more features again.
+The idea was raised to use only one application partition along with a small factory partition, unlike the standard OTA configuration defined by Espressif, which uses two application partitions ([https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html)). This way the application partition size increases and gives the possibility to continue with Arduino 3.x and to support more features again.
 
 ## How It Works
 
 Pixelix is flashed to the app partition and the PixelixUpdater is flashed to the factory partition. Under normal circumstances the app partition is active. A OTA update can be requested by the user through the Pixelix Web interface. This will result in a reboot from the factory partition into PixelixUpdater. After a few seconds the website will reload and change to the webinterface of the PixelixUpdater. This is where the user can upload their firmware or filesystem binaries. If the upload finishes successfully a notification will be shown. To get back to Pixelix the user needs to press the **Back to Pixelix** button.
 
-![](doc/images/OTA_Update_Webserver.png)
+![OTA Update Weberserver](doc/images/OTA_Update_Webserver.png)
 
 ## PixelixUpdater webinterface
 
 The webinterface of the PixelixUpdater offers two file browser fields for uploading the Pixelix firmaware bin file and/or the file system image. Before uploading the firmware binary, make sure it is compatible with your board.
 
-![](doc/images/PixelixUpdater.png)
+![PixelixUpdater](doc/images/PixelixUpdater.png)
 
 ## Simple App
 
-The update process is demonstrated using the SimpleApp example code from this repository. Instead of Pixelix the SimpleApp runs in the app partition and spawns a minimalistic webinterface. 
+The update process is demonstrated using the SimpleApp example code from this repository. Instead of Pixelix the SimpleApp runs in the app partition and spawns a minimalistic webinterface.
 
-![](doc/images/SimpleApp.png)
+![SimpleApp](doc/images/SimpleApp.png)
 
 ## How To Get Started
 
-To install the necessary toolchain you can follow the installation guide from Pixelix until you reach "Next Step": https://github.com/BlueAndi/Pixelix/blob/master/doc/config/TOOLCHAIN-INSTALLATION.md. If you've reached "Next Step" click on the link below. Instead of cloning the Pixelix repository you can use 
+To install the necessary toolchain you can follow the installation guide from Pixelix until you reach "Next Step": [https://github.com/BlueAndi/Pixelix/blob/master/doc/config/TOOLCHAIN-INSTALLATION.md](https://github.com/BlueAndi/Pixelix/blob/master/doc/config/TOOLCHAIN-INSTALLATION.md). If you've reached "Next Step" click on the link below. Instead of cloning the Pixelix repository you can use
+
 ```bash
-$ git clone https://github.com/BlueAndi/PixelixUpdater.git
+git clone https://github.com/BlueAndi/PixelixUpdater.git
 ```
-to clone the repository of the PixelixUpdater. 
+
+to clone the repository of the PixelixUpdater.
 Now open the cloned repository folder in VSCode. Continue following the guide to build the PixelixUpdater binary.
 If you want to test the OTA update process using the SimpleApp, open the `example/SimpleApp` folder in VSCode.
-First, make sure that the `factory_binaries` folder contains a binary that matches your board. 
+First, make sure that the `factory_binaries` folder contains a binary that matches your board.
 
-![](doc/images/factory_binaries_folder.png)
+![factory binaries folder](doc/images/factory_binaries_folder.png)
 
 Each release of the PixelixUpdater includes a ZIP file as an asset, which contains the PixelixUpdater binaries for all supported boards. Download this ZIP file and copy the binaries into the `factory_binaries` folder.
 To upload both the SimpleApp and PixelixUpdater binaries press the **Upload** button matching your board in the PlatformIO toolbar (to access the toolbar, click on the ant head icon in the left sidebar).
 After booting your board will spawn an Access Point. The password for the Access Point will be: Luke, I am your father.
 
-![](doc/images/upload_button.png)
+![upload button](doc/images/upload_button.png)
 
 ## How To Integrate Into Pixelix
 
 Just like the SimpleApp, Pixelix includes a `factory_binaries` folder.
 
-![](doc/images/factory_binaries_folder_pixelix.png)
+![factory binaries folder pixelix](doc/images/factory_binaries_folder_pixelix.png)
 
 Each release of the Pixelix Updater includes a ZIP file as an asset, which contains the PixelixUpdater binaries for all supported boards. Download this ZIP file and copy the binaries into the `factory_binaries` folder of Pixelix.
 To update the PixelixUpdater press the **Upload** button as shown above. This will upload the PixelixUpdater together with the Pixelix firmware. After both have been uploaded together, the board performs its first boot from the application partition. This is, for example, the case after erasing the flash memory.
