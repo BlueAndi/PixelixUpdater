@@ -67,6 +67,14 @@ jobs:
     - name: Compile ${{ matrix.environment }} firmware
       run: platformio run --environment ${{ matrix.environment }}
 
+    - name: Deploy ${{ matrix.environment }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.environment }}
+        path: |
+          ${{ github.workspace }}/.pio/build/${{ matrix.environment }}/${{ matrix.environment }}.bin
+        retention-days: 2
+
   # Perform static checks
   check:
     # The type of runner that the job will run on.
