@@ -8,7 +8,6 @@
         <link rel="stylesheet" type="text/css" href="bootstrap.min.css" />
         <link rel="stylesheet" type="text/css" href="sticky-footer-navbar.css" />
         <link rel="stylesheet" type="text/css" href="style.css" />
-
         <title>PIXELIX Updater</title>
         <link rel="shortcut icon" type="image/png" href="favicon.png" />
     </head>
@@ -171,7 +170,7 @@
                             else if("X-File-Size-Filesystem" === fileHeader) {
                                 dialog.showError("File is too big for filesystem partition of size " + size + "B!");
                             }
-                            
+
                             return false;
                         } else {
                             return true;
@@ -231,7 +230,7 @@
                 }
                 else if(buttonId === "buttonFilesystemUpload") {
                     upload("inputFilesystemFile", "X-File-Size-Filesystem")
-                } 
+                }
             }
 
             /* Execute after page is ready. */
