@@ -406,12 +406,6 @@ static const uint16_t DNS_PORT = 53U;
  */
 static DNSServer gDnsServer;
 
-/** Firmware binary filename, used for update. */
-static const char FIRMWARE_FILENAME[]      = "firmware.bin";
-
-/** Filesystem binary filename, used for update. */
-static const char FILESYSTEM_FILENAME[]    = "littlefs.bin";
-
 /** Firmware binary size HTTP request header. */
 static const char FIRMWARE_SIZE_HEADER[]   = "X-File-Size-Firmware";
 
