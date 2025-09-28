@@ -625,6 +625,19 @@ static void setupWebServer()
              * a short delay is necessary.
              */
             delay(RESTART_DELAY);
+
+            /* Disconnect WiFi graceful before restart. */
+            if ((STATE_AP_SETUP == gState) || (STATE_AP_UP == gState))
+            {
+                /* In AP mode, stop the access point. */
+                (void)WiFi.softAPdisconnect();
+            }
+            else
+            {
+                /* In STA mode, disconnect from the access point. */
+                (void)WiFi.disconnect();
+            }
+
             ESP.restart();
             break;
         }
