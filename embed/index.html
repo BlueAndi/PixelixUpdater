@@ -133,7 +133,7 @@
                     method: "GET",
                     url: "/change-partition",
                 }).then(function(rsp) {
-                    let seconds = 20;
+                    let seconds = 10;
                     dialog.showInfo(`<p>Reload in ${seconds}s</p>`);
 
                     const intervalId = setInterval(() => {
