@@ -38,8 +38,10 @@
 #include <WiFi.h>
 #include <DNSServer.h>
 #include <esp_log.h>
+#include <Settings.h>
 
 #include "MyWebServer.h"
+#include "MiniTerminal.h"
 
 /******************************************************************************
  * Macros
@@ -72,7 +74,6 @@ typedef enum
  * Prototypes
  *****************************************************************************/
 
-static void loadSettings();
 static void appendDeviceUniqueId(String& deviceUniqueId);
 static void getChipId(String& chipId);
 static void stateMachine();
@@ -110,77 +111,17 @@ static const uint32_t HWCDC_TX_TIMEOUT = 4U;
 /**
  * Tag for logging purposes.
  */
-static const char LOG_TAG[]                    = "main";
+static const char LOG_TAG[]      = "main";
 
 /**
  * OTA password.
  */
-static const char OTA_PASSWORD[]               = "maytheforcebewithyou";
-
-/**
- * SettingsService namespace used for preferences.
- */
-static const char PREF_NAMESPACE[]             = "settings";
-
-/** Hostname key */
-static const char KEY_HOSTNAME[]               = "hostname";
-
-/** Wifi network key */
-static const char KEY_WIFI_SSID[]              = "sta_ssid";
-
-/** Wifi network passphrase key */
-static const char KEY_WIFI_PASSPHRASE[]        = "sta_passphrase";
-
-/** Wifi Access Point SSID key */
-static const char KEY_WIFI_AP_SSID[]           = "ap_ssid";
-
-/** Wifi Access Point passphrase key */
-static const char KEY_WIFI_AP_PASSPHRASE[]     = "ap_passphrase";
-
-/** Hostname default value */
-static const char DEFAULT_HOSTNAME[]           = "PixelixUpdater";
-
-/** Wifi network default value */
-static const char DEFAULT_WIFI_SSID[]          = "";
-
-/** Wifi network passphrase default value */
-static const char DEFAULT_WIFI_PASSPHRASE[]    = "";
-
-/** Wifi Access Point SSID default value */
-static const char DEFAULT_WIFI_AP_SSID[]       = "pixelix";
-
-/** Wifi Access Point passphrase default value */
-static const char DEFAULT_WIFI_AP_PASSPHRASE[] = "Luke, I am your father.";
-
-/**
- * The hostname of the device.
- */
-static String gSettingsHostname                = DEFAULT_HOSTNAME;
-
-/**
- * WiFi SSID.
- */
-static String gSettingsWifiSSID                = DEFAULT_WIFI_SSID;
-
-/**
- * WiFi passphrase.
- */
-static String gSettingsWifiPassphrase          = DEFAULT_WIFI_PASSPHRASE;
-
-/**
- * WiFi Access Point SSID.
- */
-static String gSettingsWifiApSSID              = DEFAULT_WIFI_AP_SSID;
-
-/**
- * WiFi Access Point passphrase.
- */
-static String gSettingsWifiApPassphrase        = DEFAULT_WIFI_AP_PASSPHRASE;
+static const char OTA_PASSWORD[] = "maytheforcebewithyou";
 
 /**
  * Current state of the application.
  */
-static State gState = STATE_INIT;
+static State gState              = STATE_INIT;
 
 /**
  * Set access point local address.
@@ -210,6 +151,11 @@ static const uint16_t DNS_PORT = 53U;
  */
 static DNSServer gDnsServer;
 
+/**
+ * Mini terminal instance for command line interface.
+ */
+static MiniTerminal gMiniTerminal(Serial);
+
 /******************************************************************************
  * External functions
  *****************************************************************************/
@@ -219,6 +165,9 @@ static DNSServer gDnsServer;
  */
 void setup()
 {
+    Settings& settings = Settings::getInstance();
+    String    hostname;
+
     /* Setup serial interface */
     Serial.begin(SERIAL_BAUDRATE);
 
@@ -237,15 +186,23 @@ void setup()
     /* Set severity for esp logging system. */
     esp_log_level_set("*", CONFIG_ESP_LOG_SEVERITY);
 
-    /* Load settings from the persistent storage. */
-    loadSettings();
+    /* Load hostname from settings. */
+    if (false == settings.open(true))
+    {
+        hostname = "PixelixUpdater";
+    }
+    else
+    {
+        hostname = settings.getHostname().getValue();
 
-    /* To avoid name clashes, add a unqiue id to the hostname. */
-    appendDeviceUniqueId(gSettingsHostname);
+        settings.close();
+    }
+
+    appendDeviceUniqueId(hostname);
 
     ESP_LOGI(LOG_TAG, "Target: %s", PIO_ENV);
     ESP_LOGI(LOG_TAG, "Version: %s", VERSION);
-    ESP_LOGI(LOG_TAG, "Hostname: %s", gSettingsHostname.c_str());
+    ESP_LOGI(LOG_TAG, "Hostname: %s", hostname.c_str());
     ESP_LOGI(LOG_TAG, "Partition: Factory");
 
     /* Start wifi */
@@ -261,6 +218,7 @@ void loop()
 {
     stateMachine();
     MyWebServer::handleClient();
+    gMiniTerminal.process();
 
     /* Schedule other tasks with same or lower priority. */
     delay(LOOP_TASK_PERIOD);
@@ -269,47 +227,6 @@ void loop()
 /******************************************************************************
  * Local functions
  *****************************************************************************/
-
-/**
- * Load settings from preferences to be used by the application.
- * If no settings are found, default values will be used.
- *
- * The settings are stored in the preferences storage, which is a key-value
- * storage. The keys are defined by Pixelix!
- */
-static void loadSettings()
-{
-    Preferences preferences;
-
-    /* Open Preferences with namespace. Each application module, library, etc
-     * has to use a namespace name to prevent key name collisions. We will open storage in
-     * RW-mode (second parameter has to be false).
-     * Note: Namespace name is limited to 15 chars.
-     */
-    bool status = preferences.begin(PREF_NAMESPACE, true);
-
-    /* Settings not found? */
-    if (false == status)
-    {
-        ESP_LOGW(LOG_TAG, "No settings found, using default values.");
-        gSettingsHostname         = DEFAULT_HOSTNAME;
-        gSettingsWifiSSID         = DEFAULT_WIFI_SSID;
-        gSettingsWifiPassphrase   = DEFAULT_WIFI_PASSPHRASE;
-        gSettingsWifiApSSID       = DEFAULT_WIFI_AP_SSID;
-        gSettingsWifiApPassphrase = DEFAULT_WIFI_AP_PASSPHRASE;
-    }
-    /* Settings found. */
-    else
-    {
-        gSettingsHostname         = preferences.getString(KEY_HOSTNAME, DEFAULT_HOSTNAME);
-        gSettingsWifiSSID         = preferences.getString(KEY_WIFI_SSID, DEFAULT_WIFI_SSID);
-        gSettingsWifiPassphrase   = preferences.getString(KEY_WIFI_PASSPHRASE, DEFAULT_WIFI_PASSPHRASE);
-        gSettingsWifiApSSID       = preferences.getString(KEY_WIFI_AP_SSID, DEFAULT_WIFI_AP_SSID);
-        gSettingsWifiApPassphrase = preferences.getString(KEY_WIFI_AP_PASSPHRASE, DEFAULT_WIFI_AP_PASSPHRASE);
-    }
-
-    preferences.end();
-}
 
 /**
  * Append device unique ID to string.
@@ -394,7 +311,22 @@ static void stateMachine()
  */
 static void stateInit()
 {
-    if (true == gSettingsWifiSSID.isEmpty())
+    Settings& settings = Settings::getInstance();
+    String    wifiSSID;
+
+    /* Load settings. */
+    if (false == settings.open(true))
+    {
+        wifiSSID = settings.getWifiSSID().getDefault();
+    }
+    else
+    {
+        wifiSSID = settings.getWifiSSID().getValue();
+
+        settings.close();
+    }
+
+    if (true == wifiSSID.isEmpty())
     {
         ESP_LOGI(LOG_TAG, "No WiFi SSID configured, starting in Access Point mode.");
         gState = STATE_AP_SETUP;
@@ -433,14 +365,31 @@ static void stateStaConnecting()
 {
     if (WL_CONNECTED != WiFi.status())
     {
+        Settings&      settings                    = Settings::getInstance();
         const uint32_t CONNECT_TIMEOUT_MS          = 10000U;
         const uint32_t CHECK_CONNECTION_TIMEOUT_MS = 100U;
         uint32_t       startTime                   = millis();
+        String         wifiSSID;
+        String         wifiPassphrase;
+
+        /* Load settings. */
+        if (false == settings.open(true))
+        {
+            wifiSSID       = settings.getWifiSSID().getDefault();
+            wifiPassphrase = settings.getWifiPassphrase().getDefault();
+        }
+        else
+        {
+            wifiSSID       = settings.getWifiSSID().getValue();
+            wifiPassphrase = settings.getWifiPassphrase().getValue();
+
+            settings.close();
+        }
 
         /* Try to connect to the wifi network. */
-        (void)WiFi.begin(gSettingsWifiSSID.c_str(), gSettingsWifiPassphrase.c_str());
+        (void)WiFi.begin(wifiSSID.c_str(), wifiPassphrase.c_str());
 
-        ESP_LOGI(LOG_TAG, "Connecting to WiFi '%s'...", gSettingsWifiSSID.c_str());
+        ESP_LOGI(LOG_TAG, "Connecting to WiFi '%s'...", wifiSSID.c_str());
 
         /* Wait until connected. */
         while ((WL_CONNECTED != WiFi.status()) && ((millis() - startTime) < CONNECT_TIMEOUT_MS))
@@ -450,13 +399,13 @@ static void stateStaConnecting()
 
         if (WL_CONNECTED != WiFi.status())
         {
-            ESP_LOGE(LOG_TAG, "Failed to connect to WiFi '%s'", gSettingsWifiSSID.c_str());
+            ESP_LOGE(LOG_TAG, "Failed to connect to WiFi '%s'", wifiSSID.c_str());
             ESP_LOGI(LOG_TAG, "Setup WiFi Access Point mode.");
             gState = STATE_AP_SETUP;
         }
         else
         {
-            ESP_LOGI(LOG_TAG, "Connected to WiFi '%s'", gSettingsWifiSSID.c_str());
+            ESP_LOGI(LOG_TAG, "Connected to WiFi '%s'", wifiSSID.c_str());
             ESP_LOGI(LOG_TAG, "IP address: %s", WiFi.localIP().toString().c_str());
         }
     }
@@ -482,6 +431,29 @@ static void stateStaConnected()
  */
 static void stateApSetup()
 {
+    Settings& settings = Settings::getInstance();
+    String    hostname;
+    String    wifiApSSID;
+    String    wifiApPassphrase;
+
+    /* Load settings. */
+    if (false == settings.open(true))
+    {
+        hostname         = settings.getHostname().getDefault();
+        wifiApSSID       = settings.getWifiApSSID().getDefault();
+        wifiApPassphrase = settings.getWifiApPassphrase().getDefault();
+    }
+    else
+    {
+        hostname         = settings.getHostname().getValue();
+        wifiApSSID       = settings.getWifiApSSID().getValue();
+        wifiApPassphrase = settings.getWifiApPassphrase().getValue();
+
+        settings.close();
+    }
+
+    appendDeviceUniqueId(hostname);
+
     /* Configure access point.
      * The DHCP server will automatically be started and uses the range x.x.x.1 - x.x.x.11
      */
@@ -493,13 +465,13 @@ static void stateApSetup()
     /* Set hostname. Note, wifi must be started, which is done
      * by setting the mode before.
      */
-    else if (false == WiFi.softAPsetHostname(gSettingsHostname.c_str()))
+    else if (false == WiFi.softAPsetHostname(hostname.c_str()))
     {
         ESP_LOGE(LOG_TAG, "Failed to set Access Point hostname.");
         gState = STATE_ERROR;
     }
     /* Setup wifi access point. */
-    else if (false == WiFi.softAP(gSettingsWifiApSSID.c_str(), gSettingsWifiApPassphrase.c_str()))
+    else if (false == WiFi.softAP(wifiApSSID.c_str(), wifiApPassphrase.c_str()))
     {
         ESP_LOGE(LOG_TAG, "Failed to setup Access Point.");
         gState = STATE_ERROR;
@@ -520,7 +492,7 @@ static void stateApSetup()
             gDnsServer.setErrorReplyCode(DNSReplyCode::NoError);
         }
 
-        ESP_LOGI(LOG_TAG, "Access Point '%s' is up and running.", gSettingsHostname.c_str());
+        ESP_LOGI(LOG_TAG, "Access Point '%s' is up and running.", hostname.c_str());
         gState = STATE_AP_UP;
     }
 }

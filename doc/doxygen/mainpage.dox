@@ -9,4 +9,14 @@ The generated code.
 @{
 @}
 
+@defgroup SETTINGS Settings
+Settings function for handling data in the persistency.
+@{
+@}
+
+@defgroup UTILITIES Utilities
+Utility functionality.
+@{
+@}
+
 */

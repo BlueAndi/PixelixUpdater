@@ -16,6 +16,7 @@ The Pixelix updater application is flashed to a factory partition and provides t
 - [How To Get Started](#how-to-get-started)
 - [How To Integrate Into Pixelix](#how-to-integrate-into-pixelix)
 - [How To Update The PixelixUpdater](#how-to-update-the-pixelixupdater)
+- [Terminal](#terminal)
 - [Used Libraries](#used-libraries)
 - [Issues, Ideas And Bugs](#issues-ideas-and-bugs)
 - [License](#license)
@@ -80,6 +81,19 @@ Please note: The PixelixUpdater cannot be flashed via OTA update.
 
 Take a look at "How To Integrate Into Pixelix".
 Simply replace the existing binaries in the `factory_binaries` folder with the updated ones from the latest release of the PixelixUpdater then press the **Upload** button.
+
+## Terminal
+
+The PixelixUpdater provides some commands via serial interface.
+
+- Restart the device: ```restart```
+- Write wifi passphrase: ```write wifi passphrase <your-passphrase>```
+- Write wifi SSID: ```write wifi ssid <your-ssid>```
+- Restart PIXELIX: ```restart```
+- Get IP-address: ```get ip```
+- Activate app0 as boot partition: ```activate app```
+
+Enter ```help``` to get a list of all supported commands.
 
 ## Used Libraries
 

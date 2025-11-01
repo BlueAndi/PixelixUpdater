@@ -43,6 +43,7 @@
 #include <esp_partition.h>
 
 #include "EmbeddedFiles.h"
+#include "BootPartition.h"
 
 /******************************************************************************
  * Compiler Switches
@@ -55,18 +56,6 @@
 /******************************************************************************
  * Types and classes
  *****************************************************************************/
-
-/**
- * Result of setting boot partition.
- */
-typedef enum
-{
-    BOOT_SUCCESS,
-    BOOT_PARTITION_NOT_FOUND,
-    BOOT_SET_FAILED,
-    BOOT_UNKNOWN_ERROR
-
-} BootPartitionResult;
 
 /**
  * This type defines supported HTTP response status codes according to RFC7231.
@@ -138,7 +127,6 @@ typedef enum
  * Prototypes
  *****************************************************************************/
 
-static BootPartitionResult setAppPartition0AsBootPartition();
 static void handleUpload();
 static void handleFileUpload();
 static void handleFileStart(HTTPUpload& upload);
@@ -205,9 +193,9 @@ void MyWebServer::begin()
     });
 
     gWebServer.on("/change-partition", HTTP_GET, []() {
-        switch (setAppPartition0AsBootPartition())
+        switch (BootPartition::setApp0())
         {
-        case BOOT_SUCCESS: {
+        case BootPartition::BOOT_SUCCESS: {
             const uint32_t RESTART_DELAY = 100U; /* ms */
 
             gWebServer.send(STATUS_CODE_OK, "text/plain", "Partition switched. Restarting...");
@@ -232,13 +220,16 @@ void MyWebServer::begin()
             ESP.restart();
             break;
         }
-        case BOOT_PARTITION_NOT_FOUND:
+
+        case BootPartition::BOOT_PARTITION_NOT_FOUND:
             gWebServer.send(STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "App0 partition not found!");
             break;
-        case BOOT_SET_FAILED:
+
+        case BootPartition::BOOT_SET_FAILED:
             gWebServer.send(STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Failed to set app0 partition as boot partition!");
             break;
-        case BOOT_UNKNOWN_ERROR:
+
+        case BootPartition::BOOT_UNKNOWN_ERROR:
             gWebServer.send(STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Cannot switch to app0 partition. Error unknown!");
             break;
         }
@@ -296,45 +287,6 @@ void MyWebServer::handleClient()
 /******************************************************************************
  * Local Functions
  *****************************************************************************/
-
-/**
- * Set the application partition 0 active to be the next boot partition.
- *
- * @return BootPartitionResult indicating wether factory was set as boot partition successfully or not.
- */
-static BootPartitionResult setAppPartition0AsBootPartition()
-{
-    BootPartitionResult    result    = BOOT_UNKNOWN_ERROR;
-    const esp_partition_t* partition = nullptr;
-
-    partition                        = esp_partition_find_first(
-        esp_partition_type_t::ESP_PARTITION_TYPE_APP,
-        esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_APP_OTA_0,
-        nullptr);
-
-    if (nullptr != partition)
-    {
-        esp_err_t err = esp_ota_set_boot_partition(partition);
-        ESP_LOGI(LOG_TAG, "Setting app0 partition '%s' as boot partition", partition->label);
-
-        if (ESP_OK != err)
-        {
-            ESP_LOGE(LOG_TAG, "Failed to set app0 partition '%s' as boot partition: %d", partition->label, err);
-            result = BOOT_SET_FAILED;
-        }
-        else
-        {
-            result = BOOT_SUCCESS;
-        }
-    }
-    else
-    {
-        ESP_LOGE(LOG_TAG, "App0 partition not found!");
-        result = BOOT_PARTITION_NOT_FOUND;
-    }
-
-    return result;
-}
 
 /**
  * Handle upload requests.
