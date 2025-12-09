@@ -60,16 +60,16 @@
                         <div class="alert alert-warning" role="alert">
                             A filesystem update might cause a loss of all configuration data on the filesystem. Make sure you have a backup of your configuration before updating it. Backups can be done via the webinterface of Pixelix.
                         </div>
-                        <button class="btn btn-primary extra" type="button" onclick="sendPartitionChangeRequest();">Back to Pixelix</button>
+                        <button class="btn btn-primary extra" type="button" onclick="sendPartitionChangeRequest();" disabled>Back to Pixelix</button>
                         <p>Select your pixelix firmware binary here.</p>
                         <div class="input-group">
                             <input type="file" class="form-control" id="inputFirmwareFile" accept=".bin">
-                            <button class="btn btn-primary" type="button" onclick="triggerUpload(event);" id="buttonFirmwareUpload">Upload</button>
+                            <button class="btn btn-primary" type="button" onclick="triggerUpload(event);" id="buttonFirmwareUpload" disabled>Upload</button>
                         </div>
                         <p>Select your filesystem binary here.</p>
                         <div class="input-group">
                             <input type="file" class="form-control" id="inputFilesystemFile" accept=".bin">
-                            <button class="btn btn-primary" type="button" onclick="triggerUpload(event);" id="buttonFilesystemUpload">Upload</button>
+                            <button class="btn btn-primary" type="button" onclick="triggerUpload(event);" id="buttonFilesystemUpload" disabled>Upload</button>
                         </div>
                         <div class="progress">
                             <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
@@ -127,24 +127,25 @@
 
             /* Request change of active partition. */
             function sendPartitionChangeRequest() {
-                disableUI();
+                var intervalId = 0;
 
+                disableUI();
+                
                 utils.makeRequest({
                     method: "GET",
                     url: "/change-partition",
                 }).then(function(rsp) {
                     let seconds = 10;
-                    dialog.showInfo(`<p>Reload in ${seconds}s</p>`);
 
-                    const intervalId = setInterval(() => {
+                    intervalId = setInterval(() => {
                         seconds--;
-                        if (seconds > 0) {
-                            dialog.showInfo(`<p>Reload in ${seconds}s</p>`);
-                        } else {
-                            clearInterval(intervalId);
-                            location.reload();
-                        }
+                        dialog.updateMessage(`<p>Reload in ${seconds}s</p>`);
                     }, 1000);
+
+                    return dialog.showInfo(`<p>Reload in ${seconds}s</p>`, true);
+                }).then(function() {
+                    clearInterval(intervalId);
+                    location.reload();
                 }).catch(function(rsp) {
                     dialog.showError("<p>Error: " + rsp + "</p>")
                     enableUI();
@@ -248,6 +249,8 @@
 
                     updateProgressBar("progressBar", 0);
                 });
+
+                enableUI();
             });
         </script>
     </body>

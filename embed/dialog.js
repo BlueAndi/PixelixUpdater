@@ -99,3 +99,7 @@ dialog.show = function(title, message, isBlocking) {
 
     return dialog._show(title, message, isBlocking);
 }
+
+dialog.updateMessage = function(message) {
+    $("#dialogBody").html(message);
+};
