@@ -220,6 +220,26 @@ void loop()
     MyWebServer::handleClient();
     gMiniTerminal.process();
 
+    if (true == gMiniTerminal.isRestartRequested())
+    {
+        /* Give some time to send the response before restarting. */
+        delay(100U);
+
+        /* Disconnect WiFi graceful before restart. */
+        if (WIFI_MODE_AP == WiFi.getMode())
+        {
+            /* In AP mode, stop the access point. */
+            (void)WiFi.softAPdisconnect();
+        }
+        else
+        {
+            /* In STA mode, disconnect from the access point. */
+            (void)WiFi.disconnect();
+        }
+
+        ESP.restart();
+    }
+
     /* Schedule other tasks with same or lower priority. */
     delay(LOOP_TASK_PERIOD);
 }
