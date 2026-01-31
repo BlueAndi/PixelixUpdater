@@ -5,7 +5,7 @@ generates C header files with the compressed content as byte arrays.
 
 # MIT License
 #
-# Copyright (c) 2019 - 2025 Andreas Merkle (web@blue-andi.de)
+# Copyright (c) 2019 - 2026 Andreas Merkle (web@blue-andi.de)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@ INDEX_FILE_BASE_NAME = "EmbeddedFiles"
 LICENSE = """\
 /* MIT License
  *
- * Copyright (c) 2025 Andreas Merkle <web@blue-andi.de>
+ * Copyright (c) 2025 - 2026 Andreas Merkle <web@blue-andi.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
