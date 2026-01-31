@@ -1,3 +1,5 @@
+"use strict";
+
 var utils = window.utils || {};
 
 utils.enableForm = function(formId, enableIt) {
@@ -49,7 +51,7 @@ utils.obj2FormData = function(obj, formData = new FormData()) {
     this.createFormData(obj);
 
     return this.formData;
-}
+};
 
 utils.makeRequest = function(options) {
     return new Promise(function(resolve, reject) {
@@ -156,7 +158,7 @@ utils.readJsonFile = function(file) {
         rawFile.overrideMimeType("application/json");
         rawFile.open("GET", file, true);
         rawFile.onreadystatechange = function() {
-            if ((4 == rawFile.readyState) && ("200" == rawFile.status)) {
+            if ((4 === rawFile.readyState) && ("200" === rawFile.status)) {
                 resolve(rawFile.responseText);
             }
         }
