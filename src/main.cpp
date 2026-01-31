@@ -177,6 +177,12 @@ void setup()
 #endif /* ARDUINO_USB_CDC_ON_BOOT */
 #endif /* ARDUINO_USB_MODE */
 
+#ifdef CONFIG_PIN_BUZZER_OUT
+    /* Disable buzzer. */
+    pinMode(CONFIG_PIN_BUZZER_OUT, OUTPUT);
+    digitalWrite(CONFIG_PIN_BUZZER_OUT, LOW);
+#endif /* CONFIG_PIN_BUZZER_OUT */
+
     /* Ensure a distance between the boot mode message and the first log message.
      * Otherwise the first log message appears in the same line than the last
      * boot mode message.
