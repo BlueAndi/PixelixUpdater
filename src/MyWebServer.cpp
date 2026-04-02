@@ -92,10 +92,10 @@ static const char LOG_TAG[] = "MyWebServer";
 static WebServer gWebServer(80U);
 
 /** Basic authentication username. */
-static String gBasicAuthUser               = "luke";
+static String gBasicAuthUser;
 
 /** Basic authentication password. */
-static String gBasicAuthPassword           = "skywalker";
+static String gBasicAuthPassword;
 
 /** Firmware binary size HTTP request header. */
 static const char FIRMWARE_SIZE_HEADER[]   = "X-File-Size-Firmware";
@@ -126,7 +126,12 @@ void MyWebServer::begin()
     Settings&   settings     = Settings::getInstance();
 
     /* Prepare basic authentication credentials from settings. */
-    if (true == settings.open(true))
+    if (false == settings.open(true))
+    {
+        gBasicAuthUser     = settings.getWebLoginUser().getDefault();
+        gBasicAuthPassword = settings.getWebLoginPassword().getDefault();
+    }
+    else
     {
         gBasicAuthUser     = settings.getWebLoginUser().getValue();
         gBasicAuthPassword = settings.getWebLoginPassword().getValue();

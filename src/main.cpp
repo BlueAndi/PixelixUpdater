@@ -195,7 +195,7 @@ void setup()
     /* Load hostname from settings. */
     if (false == settings.open(true))
     {
-        hostname = "PixelixUpdater";
+        hostname = settings.getHostname().getDefault();
     }
     else
     {
