@@ -139,14 +139,15 @@ static bool isFsMountable()
     bool                   isMountable = false;
     const esp_partition_t* partition;
 
+    /* For Arduino 2.x support, search for SPIFFS partition, instead of LittleFS. */
     partition = esp_partition_find_first(
         esp_partition_type_t::ESP_PARTITION_TYPE_DATA,
-        esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_DATA_LITTLEFS,
+        esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_DATA_SPIFFS,
         nullptr);
 
     if (nullptr != partition)
     {
-        if (false == LittleFS.begin(false, "/littlefs", 10U, partition->label))
+        if (false == LittleFS.begin())
         {
             ESP_LOGE(LOG_TAG, "Failed to mount filesystem partition '%s'!", partition->label);
         }

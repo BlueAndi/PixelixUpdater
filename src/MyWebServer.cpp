@@ -153,7 +153,7 @@ void MyWebServer::handleClient()
 
 /**
  * Send a JSON response to the client.
- * 
+ *
  * @param[in] status    HTTP status code to send.
  * @param[in] json      JSON string to send as the response body.
  */
@@ -165,7 +165,7 @@ static void sendJsonResponse(HttpStatus::StatusCode status, const String& json)
 
 /**
  * Send a success response to the client.
- * 
+ *
  * @param[in] message  Success message to send.
  */
 static void sendSuccessResponse(const String& message)
@@ -177,7 +177,7 @@ static void sendSuccessResponse(const String& message)
 
 /**
  * Send a success response with a JSON payload to the client.
- * 
+ *
  * @param[in] message      Success message to send.
  * @param[in] jsonPayload  JSON payload to include in the response.
  */
@@ -190,7 +190,7 @@ static void sendSuccessPayloadResponse(const String& message, const String& json
 
 /**
  * Send an error response to the client.
- * 
+ *
  * @param[in] status    HTTP status code to send.
  * @param[in] code      Error code to send.
  * @param[in] message   Error message to send.
@@ -269,7 +269,7 @@ static void handleFileStart(HTTPUpload& upload)
     else if (false == gWebServer.header(FILESYSTEM_SIZE_HEADER).isEmpty())
     {
         headerXFileSize = gWebServer.header(FILESYSTEM_SIZE_HEADER);
-        cmd             = U_LITTLEFS;
+        cmd             = U_SPIFFS;
     }
     else
     {
@@ -416,7 +416,7 @@ static void handlePartitionSize()
     {
         const esp_partition_t* partition = esp_partition_find_first(
             esp_partition_type_t::ESP_PARTITION_TYPE_DATA,
-            esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_DATA_LITTLEFS,
+            esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_DATA_SPIFFS,
             nullptr);
 
         if (nullptr != partition)
