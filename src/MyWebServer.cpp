@@ -37,6 +37,7 @@
 #include <WebServer.h>
 #include <Update.h>
 #include <WiFi.h>
+#include <Settings.h>
 
 #include <esp_log.h>
 #include <esp_ota_ops.h>
@@ -62,6 +63,7 @@
  * Prototypes
  *****************************************************************************/
 
+static bool requireAuthentication();
 static void sendJsonResponse(HttpStatus::StatusCode status, const String& json);
 static void sendSuccessResponse(const String& message);
 static void sendSuccessPayloadResponse(const String& message, const String& jsonPayload);
@@ -89,6 +91,12 @@ static const char LOG_TAG[] = "MyWebServer";
  */
 static WebServer gWebServer(80U);
 
+/** Basic authentication username. */
+static String gBasicAuthUser               = "luke";
+
+/** Basic authentication password. */
+static String gBasicAuthPassword           = "skywalker";
+
 /** Firmware binary size HTTP request header. */
 static const char FIRMWARE_SIZE_HEADER[]   = "X-File-Size-Firmware";
 
@@ -115,6 +123,16 @@ void MyWebServer::begin()
 {
     const char* headerKeys[] = { FIRMWARE_SIZE_HEADER, FILESYSTEM_SIZE_HEADER };
     size_t      keyCount     = sizeof(headerKeys) / sizeof(headerKeys[0]);
+    Settings&   settings     = Settings::getInstance();
+
+    /* Prepare basic authentication credentials from settings. */
+    if (true == settings.open(true))
+    {
+        gBasicAuthUser     = settings.getWebLoginUser().getValue();
+        gBasicAuthPassword = settings.getWebLoginPassword().getValue();
+
+        settings.close();
+    }
 
     /* Start the web server, before configuration! */
     gWebServer.begin();
@@ -150,6 +168,25 @@ void MyWebServer::handleClient()
 /******************************************************************************
  * Local Functions
  *****************************************************************************/
+
+/**
+ * Check if the current request is authenticated.
+ * If not authenticated, sends a 401 response with authentication challenge.
+ *
+ * @return true if authenticated, false otherwise.
+ */
+static bool requireAuthentication()
+{
+    bool isAuthenticated = true;
+
+    if (false == gWebServer.authenticate(gBasicAuthUser.c_str(), gBasicAuthPassword.c_str()))
+    {
+        gWebServer.requestAuthentication();
+        isAuthenticated = false;
+    }
+
+    return isAuthenticated;
+}
 
 /**
  * Send a JSON response to the client.
@@ -209,7 +246,10 @@ static void sendErrorResponse(HttpStatus::StatusCode status, const String& code,
  */
 static void handleUpload()
 {
-    sendSuccessResponse("File upload successful.");
+    if (true == requireAuthentication())
+    {
+        sendSuccessResponse("File upload successful.");
+    }
 }
 
 /**
@@ -346,49 +386,52 @@ static void handleFileEnd(HTTPUpload& upload)
  */
 static void handleActivateAppPartition()
 {
-    switch (BootPartition::setApp0())
+    if (true == requireAuthentication())
     {
-    case BootPartition::BOOT_SUCCESS: {
-        const uint32_t RESTART_DELAY = 100U; /* ms */
-
-        sendSuccessResponse("Partition switched. Restarting...");
-
-        /* To ensure that a positive response will be sent before the device restarts,
-         * a short delay is necessary.
-         */
-        delay(RESTART_DELAY);
-
-        /* Disconnect WiFi graceful before restart. */
-        if (WIFI_MODE_AP == WiFi.getMode())
+        switch (BootPartition::setApp0())
         {
-            /* In AP mode, stop the access point. */
-            (void)WiFi.softAPdisconnect();
+        case BootPartition::BOOT_SUCCESS: {
+            const uint32_t RESTART_DELAY = 100U; /* ms */
+
+            sendSuccessResponse("Partition switched. Restarting...");
+
+            /* To ensure that a positive response will be sent before the device restarts,
+             * a short delay is necessary.
+             */
+            delay(RESTART_DELAY);
+
+            /* Disconnect WiFi graceful before restart. */
+            if (WIFI_MODE_AP == WiFi.getMode())
+            {
+                /* In AP mode, stop the access point. */
+                (void)WiFi.softAPdisconnect();
+            }
+            else
+            {
+                /* In STA mode, disconnect from the access point. */
+                (void)WiFi.disconnect();
+            }
+
+            ESP.restart();
+            break;
         }
-        else
-        {
-            /* In STA mode, disconnect from the access point. */
-            (void)WiFi.disconnect();
+
+        case BootPartition::BOOT_PARTITION_NOT_FOUND:
+            sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "APP0_PARTITION_NOT_FOUND", "App0 partition not found!");
+            break;
+
+        case BootPartition::BOOT_SET_FAILED:
+            sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "BOOT_SET_FAILED", "Failed to set app0 partition as boot partition!");
+            break;
+
+        case BootPartition::BOOT_FS_NOT_MOUNTABLE:
+            sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "FS_NOT_MOUNTABLE", "Filesystem partition is not mountable!");
+            break;
+
+        case BootPartition::BOOT_UNKNOWN_ERROR:
+            sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "BOOT_UNKNOWN_ERROR", "Cannot switch to app0 partition. Error unknown!");
+            break;
         }
-
-        ESP.restart();
-        break;
-    }
-
-    case BootPartition::BOOT_PARTITION_NOT_FOUND:
-        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "APP0_PARTITION_NOT_FOUND", "App0 partition not found!");
-        break;
-
-    case BootPartition::BOOT_SET_FAILED:
-        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "BOOT_SET_FAILED", "Failed to set app0 partition as boot partition!");
-        break;
-
-    case BootPartition::BOOT_FS_NOT_MOUNTABLE:
-        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "FS_NOT_MOUNTABLE", "Filesystem partition is not mountable!");
-        break;
-
-    case BootPartition::BOOT_UNKNOWN_ERROR:
-        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "BOOT_UNKNOWN_ERROR", "Cannot switch to app0 partition. Error unknown!");
-        break;
     }
 }
 
@@ -397,43 +440,46 @@ static void handleActivateAppPartition()
  */
 static void handlePartitionSize()
 {
-    uint32_t size = 0U;
-
-    /* Firmware or filesystem? */
-    if (false == gWebServer.header(FIRMWARE_SIZE_HEADER).isEmpty())
+    if (true == requireAuthentication())
     {
-        const esp_partition_t* partition = esp_partition_find_first(
-            esp_partition_type_t::ESP_PARTITION_TYPE_APP,
-            esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_APP_OTA_0,
-            nullptr);
+        uint32_t size = 0U;
 
-        if (nullptr != partition)
+        /* Firmware or filesystem? */
+        if (false == gWebServer.header(FIRMWARE_SIZE_HEADER).isEmpty())
         {
-            size = partition->size;
-        }
-    }
-    else if (false == gWebServer.header(FILESYSTEM_SIZE_HEADER).isEmpty())
-    {
-        const esp_partition_t* partition = esp_partition_find_first(
-            esp_partition_type_t::ESP_PARTITION_TYPE_DATA,
-            esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_DATA_SPIFFS,
-            nullptr);
+            const esp_partition_t* partition = esp_partition_find_first(
+                esp_partition_type_t::ESP_PARTITION_TYPE_APP,
+                esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_APP_OTA_0,
+                nullptr);
 
-        if (nullptr != partition)
+            if (nullptr != partition)
+            {
+                size = partition->size;
+            }
+        }
+        else if (false == gWebServer.header(FILESYSTEM_SIZE_HEADER).isEmpty())
         {
-            size = partition->size;
+            const esp_partition_t* partition = esp_partition_find_first(
+                esp_partition_type_t::ESP_PARTITION_TYPE_DATA,
+                esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_DATA_SPIFFS,
+                nullptr);
+
+            if (nullptr != partition)
+            {
+                size = partition->size;
+            }
         }
-    }
 
-    if (0U != size)
-    {
-        String payload = "\"size\": " + String(size);
+        if (0U != size)
+        {
+            String payload = "\"size\": " + String(size);
 
-        sendSuccessPayloadResponse("Partition size retrieved successfully", payload);
-    }
-    else
-    {
-        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "PARTITION_NOT_FOUND", "Partition not found!");
+            sendSuccessPayloadResponse("Partition size retrieved successfully", payload);
+        }
+        else
+        {
+            sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "PARTITION_NOT_FOUND", "Partition not found!");
+        }
     }
 }
 
@@ -442,16 +488,19 @@ static void handlePartitionSize()
  */
 static void handleHostname()
 {
-    String hostname = WiFi.getHostname();
-
-    if (hostname.isEmpty())
+    if (true == requireAuthentication())
     {
-        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "HOSTNAME_NOT_FOUND", "Hostname not found!");
-    }
-    else
-    {
-        String payload = "\"hostname\": \"" + hostname + "\"";
+        String hostname = WiFi.getHostname();
 
-        sendSuccessPayloadResponse("Hostname retrieved successfully", payload);
+        if (hostname.isEmpty())
+        {
+            sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "HOSTNAME_NOT_FOUND", "Hostname not found!");
+        }
+        else
+        {
+            String payload = "\"hostname\": \"" + hostname + "\"";
+
+            sendSuccessPayloadResponse("Hostname retrieved successfully", payload);
+        }
     }
 }
