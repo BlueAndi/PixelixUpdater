@@ -57,7 +57,7 @@
 /**
  * The mini terminal provides the possiblity to interact with the system
  * by any stream.
- * 
+ *
  * Supported:
  * - Write wifi SSID setting
  * - Write wifi passphrase setting
@@ -68,7 +68,7 @@ public:
 
     /**
      * Construct the mini terminal instance.
-     * 
+     *
      * @param[in] stream    In-/Out-stream
      */
     MiniTerminal(Stream& stream) :
@@ -96,14 +96,14 @@ public:
 
     /**
      * Is restart requested?
-     * 
+     *
      * @return If restart requested, it will return true otherwise false.
      */
     bool isRestartRequested()
     {
         bool isRestartRequested = m_isRestartRequested;
 
-        m_isRestartRequested = false;
+        m_isRestartRequested    = false;
 
         return isRestartRequested;
     }
@@ -113,91 +113,94 @@ private:
     /**
      * Table entry for known terminal commands
      */
-    struct CmdTableEntry {
-        const char *cmdStr;                           /**< Command string.           */
-        void (MiniTerminal::*handler)(const char *);  /**< Command handler function. */
+    struct CmdTableEntry
+    {
+        const char* cmdStr;                         /**< Command string.           */
+        void (MiniTerminal::*handler)(const char*); /**< Command handler function. */
     };
 
-    static const char   ASCII_BS            = 8;    /**< ASCII backspace value */
-    static const char   ASCII_LF            = 10;   /**< ASCII line feed value */
-    static const char   ASCII_SP            = 32;   /**< ASCII space value */
-    static const char   ASCII_DEL           = 127;  /**< ASCII delete value */
-    static const size_t LOCAL_BUFFER_SIZE   = 12U;  /**< Buffer size in byte to read during processing. */
-    static const size_t INPUT_BUFFER_SIZE   = 80U;  /**< Buffer size of one input command line in byte. */
+    static const char          ASCII_BS          = 8;   /**< ASCII backspace value */
+    static const char          ASCII_TAB         = 9;   /**< ASCII tab value */
+    static const char          ASCII_LF          = 10;  /**< ASCII line feed value */
+    static const char          ASCII_SP          = 32;  /**< ASCII space value */
+    static const char          ASCII_TILDE       = 126; /**< ASCII tilde value */
+    static const char          ASCII_DEL         = 127; /**< ASCII delete value */
+    static const size_t        LOCAL_BUFFER_SIZE = 12U; /**< Buffer size in byte to read during processing. */
+    static const size_t        INPUT_BUFFER_SIZE = 80U; /**< Buffer size of one input command line in byte. */
 
-    Stream& m_stream;                   /**< In/Out-stream. */
-    char    m_input[INPUT_BUFFER_SIZE]; /**< Input command line buffer. */
-    size_t  m_writeIndex;               /**< Write index to the command line buffer. */
-    bool    m_isRestartRequested;       /**< Restart requested? */
+    Stream&                    m_stream;                   /**< In/Out-stream. */
+    char                       m_input[INPUT_BUFFER_SIZE]; /**< Input command line buffer. */
+    size_t                     m_writeIndex;               /**< Write index to the command line buffer. */
+    bool                       m_isRestartRequested;       /**< Restart requested? */
 
     static const CmdTableEntry m_cmdTable[]; /**< Table with supported commands. */
 
     /**
      * Write successful response.
-     * 
+     *
      * @param[in] result    A result may be printed additional.
      */
     void writeSuccessful(const char* result = nullptr);
 
     /**
      * Write error response.
-     * 
+     *
      * @param[in] result    A result may be printed additional.
      */
     void writeError(const char* result = nullptr);
 
     /**
      * Execute command.
-     * 
+     *
      * @param[in] cmdLine   Command line
      */
     void executeCommand(const char* cmdLine);
 
     /**
      * Restart the device.
-     * 
+     *
      * @param[in] par   Parameter
      */
     void cmdRestart(const char* par);
 
     /**
      * Write wifi passphrase.
-     * 
+     *
      * @param[in] par   Parameter
      */
     void cmdWriteWifiPassphrase(const char* par);
 
     /**
      * Write wifi SSID.
-     * 
+     *
      * @param[in] par   Parameter
      */
     void cmdWriteWifiSSID(const char* par);
 
     /**
      * Get the IP-address.
-     * 
+     *
      * @param[in] par   Parameter
      */
     void cmdGetIPAddress(const char* par);
 
     /**
      * Get the status (error id).
-     * 
+     *
      * @param[in] par   Parameter
      */
     void cmdGetStatus(const char* par);
 
     /**
      * Activate the application.
-     * 
+     *
      * @param[in] par   Parameter
      */
     void cmdActivateApp(const char* par);
 
     /**
      * Print command help message.
-     * 
+     *
      * @param[in] par   Parameter
      */
     void cmdHelp(const char* par);
@@ -207,6 +210,6 @@ private:
  * Functions
  *****************************************************************************/
 
-#endif  /* MINI_TERMINAL_H */
+#endif /* MINI_TERMINAL_H */
 
 /** @} */

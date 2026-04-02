@@ -152,8 +152,8 @@ void MiniTerminal::process()
         else if (INPUT_BUFFER_SIZE > (m_writeIndex + 1U))
         {
             /* Valid character? */
-            if ((' ' <= currentChar) &&
-                ('~' >= currentChar))
+            if ((ASCII_SP <= currentChar) &&
+                (ASCII_TILDE >= currentChar))
             {
                 m_input[m_writeIndex] = currentChar;
                 ++m_writeIndex;
@@ -199,12 +199,23 @@ void MiniTerminal::executeCommand(const char* cmdLine)
 
     for (idx = 0U; ARRAY_ELEMENT_COUNT(m_cmdTable) > idx; ++idx)
     {
-        const CmdTableEntry entry = m_cmdTable[idx];
-        const size_t        len   = strlen(entry.cmdStr);
+        const CmdTableEntry entry  = m_cmdTable[idx];
+        const size_t        cmdLen = strlen(entry.cmdStr);
 
-        if (0 == strncmp(cmdLine, entry.cmdStr, len))
+        if (0 == strncmp(cmdLine, entry.cmdStr, cmdLen))
         {
-            (this->*entry.handler)(&cmdLine[len]);
+            const char* par = &cmdLine[cmdLen];
+
+            /* Skip leading whitespace. */
+            while ((ASCII_SP == *par) || (ASCII_TAB == *par))
+            {
+                ++par;
+            }
+            /* NOTE: Allow empty parameters to be able to clear settings values. */
+
+            /* Execute the command with its parameters (optional). */
+            (this->*entry.handler)(par);
+
             break;
         }
     }
@@ -298,9 +309,14 @@ void MiniTerminal::cmdActivateApp(const char* par)
 {
     NOT_USED(par);
 
-    (void)BootPartition::setApp0();
-
-    writeSuccessful();
+    if (BootPartition::BOOT_SUCCESS != BootPartition::setApp0())
+    {
+        writeError();
+    }
+    else
+    {
+        writeSuccessful();
+    }
 }
 
 void MiniTerminal::cmdHelp(const char* par)
