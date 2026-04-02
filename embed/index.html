@@ -15,18 +15,22 @@
         <header>
             <!-- Fixed navbar -->
             <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
-                <a class="navbar-brand" href="index.html">
-                    <img src="LogoSmall.png" alt="PIXELIX" />
-                </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarCollapse">
-                    <ul class="navbar-nav me-auto" id="menu">
-                    </ul>
-                    <span class="navbar-text" id="hostname-display">
-                        <i class="text-muted">Loading hostname...</i>
-                    </span>
+                <div class="container-fluid">
+                    <div class="d-flex flex-column align-items-start">
+                        <a class="navbar-brand" href="index.html">
+                            <img src="LogoSmall.png" alt="PIXELIX" />
+                        </a>
+                        <span class="navbar-text" id="hostname-display">
+                            <i class="text-muted">Loading hostname...</i>
+                        </span>
+                    </div>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarCollapse">
+                        <ul class="navbar-nav me-auto" id="menu">
+                        </ul>
+                    </div>
                 </div>
             </nav>
         </header>
