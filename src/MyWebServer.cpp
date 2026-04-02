@@ -62,13 +62,18 @@
  * Prototypes
  *****************************************************************************/
 
+static void sendJsonResponse(HttpStatus::StatusCode status, const String& json);
+static void sendSuccessResponse(const String& message);
+static void sendSuccessPayloadResponse(const String& message, const String& jsonPayload);
+static void sendErrorResponse(HttpStatus::StatusCode status, const String& code, const String& message);
 static void handleUpload();
 static void handleFileUpload();
 static void handleFileStart(HTTPUpload& upload);
 static void handleFileWrite(HTTPUpload& upload);
 static void handleFileEnd(HTTPUpload& upload);
-static void handleAppPartitionActivation();
+static void handleActivateAppPartition();
 static void handlePartitionSize();
+static void handleHostname();
 
 /******************************************************************************
  * Local Variables
@@ -126,14 +131,13 @@ void MyWebServer::begin()
 
     gWebServer.on("/", HTTP_GET, []() {
         gWebServer.sendHeader("Location", "/index.html");
-        gWebServer.send(HttpStatus::STATUS_CODE_FOUND, "text/plain", "");
+        gWebServer.send(HttpStatus::STATUS_CODE_MOVED_PERMANENTLY, "text/plain", "");
     });
 
-    gWebServer.on("/change-partition", HTTP_GET, handleAppPartitionActivation);
-
+    gWebServer.on("/activateAppPartition", HTTP_GET, handleActivateAppPartition);
     gWebServer.on("/upload.html", HTTP_POST, handleUpload, handleFileUpload);
-
-    gWebServer.on("/partition-size", HTTP_GET, handlePartitionSize);
+    gWebServer.on("/partitionSize", HTTP_GET, handlePartitionSize);
+    gWebServer.on("/hostname", HTTP_GET, handleHostname);
 
     EmbeddedFiles_setup(gWebServer);
 }
@@ -148,13 +152,64 @@ void MyWebServer::handleClient()
  *****************************************************************************/
 
 /**
+ * Send a JSON response to the client.
+ * 
+ * @param[in] status    HTTP status code to send.
+ * @param[in] json      JSON string to send as the response body.
+ */
+static void sendJsonResponse(HttpStatus::StatusCode status, const String& json)
+{
+    gWebServer.send(status, "application/json", json);
+}
+
+
+/**
+ * Send a success response to the client.
+ * 
+ * @param[in] message  Success message to send.
+ */
+static void sendSuccessResponse(const String& message)
+{
+    String json = "{ \"data\": { \"message\": \"" + message + "\" } }";
+
+    sendJsonResponse(HttpStatus::STATUS_CODE_OK, json);
+}
+
+/**
+ * Send a success response with a JSON payload to the client.
+ * 
+ * @param[in] message      Success message to send.
+ * @param[in] jsonPayload  JSON payload to include in the response.
+ */
+static void sendSuccessPayloadResponse(const String& message, const String& jsonPayload)
+{
+    String json = "{ \"data\": { \"message\": \"" + message + "\", " + jsonPayload + " } }";
+
+    sendJsonResponse(HttpStatus::STATUS_CODE_OK, json);
+}
+
+/**
+ * Send an error response to the client.
+ * 
+ * @param[in] status    HTTP status code to send.
+ * @param[in] code      Error code to send.
+ * @param[in] message   Error message to send.
+ */
+static void sendErrorResponse(HttpStatus::StatusCode status, const String& code, const String& message)
+{
+    String json = "{ \"error\": { \"code\": \"" + code + "\", \"message\": \"" + message + "\" } }";
+
+    sendJsonResponse(status, json);
+}
+
+/**
  * Handle upload requests.
  * This function is called when a file is uploaded to the web server.
  * It sends a response back to the client indicating that the upload was successful.
  */
 static void handleUpload()
 {
-    gWebServer.send(HttpStatus::STATUS_CODE_OK, "text/plain", "File upload successful.");
+    sendSuccessResponse("File upload successful.");
 }
 
 /**
@@ -182,7 +237,8 @@ static void handleFileUpload()
     {
         ESP_LOGI(LOG_TAG, "File upload aborted: %s", upload.filename.c_str());
         Update.abort();
-        gWebServer.send(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "File upload aborted.");
+
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "UPLOAD_ABORTED", "File upload aborted.");
     }
 }
 
@@ -218,7 +274,7 @@ static void handleFileStart(HTTPUpload& upload)
     else
     {
         ESP_LOGE(LOG_TAG, "Could not find %s or %s header. Cannot upload file!", FIRMWARE_SIZE_HEADER, FILESYSTEM_SIZE_HEADER);
-        gWebServer.send(HttpStatus::STATUS_CODE_BAD_REQUEST, "text/plain", "Missing size header in request!");
+        sendErrorResponse(HttpStatus::STATUS_CODE_BAD_REQUEST, "MISSING_SIZE_HEADER", "Missing size header in request!");
     }
 
     /* File size available? */
@@ -237,7 +293,7 @@ static void handleFileStart(HTTPUpload& upload)
     if (false == Update.begin(fileSize, cmd))
     {
         ESP_LOGE(LOG_TAG, "Failed to begin file upload: %s", upload.filename.c_str());
-        gWebServer.send(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Failed to begin file upload.");
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "UPLOAD_BEGIN_FAILED", "Failed to begin file upload.");
     }
     else
     {
@@ -257,7 +313,7 @@ static void handleFileWrite(HTTPUpload& upload)
         ESP_LOGE(LOG_TAG, "Failed to write file upload: %s", upload.filename.c_str());
         ESP_LOGE(LOG_TAG, "Upload error: %s", Update.errorString());
         Update.abort();
-        gWebServer.send(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Failed to write file upload.");
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "UPLOAD_WRITE_FAILED", "Failed to write file upload.");
     }
     else
     {
@@ -277,7 +333,7 @@ static void handleFileEnd(HTTPUpload& upload)
         ESP_LOGE(LOG_TAG, "Failed to end file upload: %s", upload.filename.c_str());
         ESP_LOGE(LOG_TAG, "Upload error: %s", Update.errorString());
         Update.abort();
-        gWebServer.send(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Failed to end file upload.");
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "UPLOAD_END_FAILED", "Failed to end file upload.");
     }
     else
     {
@@ -288,14 +344,14 @@ static void handleFileEnd(HTTPUpload& upload)
 /**
  * Handle activation of the app partition.
  */
-static void handleAppPartitionActivation()
+static void handleActivateAppPartition()
 {
     switch (BootPartition::setApp0())
     {
     case BootPartition::BOOT_SUCCESS: {
         const uint32_t RESTART_DELAY = 100U; /* ms */
 
-        gWebServer.send(HttpStatus::STATUS_CODE_OK, "text/plain", "Partition switched. Restarting...");
+        sendSuccessResponse("Partition switched. Restarting...");
 
         /* To ensure that a positive response will be sent before the device restarts,
          * a short delay is necessary.
@@ -319,19 +375,19 @@ static void handleAppPartitionActivation()
     }
 
     case BootPartition::BOOT_PARTITION_NOT_FOUND:
-        gWebServer.send(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "App0 partition not found!");
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "APP0_PARTITION_NOT_FOUND", "App0 partition not found!");
         break;
 
     case BootPartition::BOOT_SET_FAILED:
-        gWebServer.send(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Failed to set app0 partition as boot partition!");
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "BOOT_SET_FAILED", "Failed to set app0 partition as boot partition!");
         break;
 
     case BootPartition::BOOT_FS_NOT_MOUNTABLE:
-        gWebServer.send(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Filesystem partition is not mountable!");
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "FS_NOT_MOUNTABLE", "Filesystem partition is not mountable!");
         break;
 
     case BootPartition::BOOT_UNKNOWN_ERROR:
-        gWebServer.send(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Cannot switch to app0 partition. Error unknown!");
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "BOOT_UNKNOWN_ERROR", "Cannot switch to app0 partition. Error unknown!");
         break;
     }
 }
@@ -371,10 +427,31 @@ static void handlePartitionSize()
 
     if (0U != size)
     {
-        gWebServer.send(HttpStatus::STATUS_CODE_OK, "text/plain", String(size));
+        String payload = "\"size\": " + String(size);
+
+        sendSuccessPayloadResponse("Partition size retrieved successfully", payload);
     }
     else
     {
-        gWebServer.send(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Partition not found!");
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "PARTITION_NOT_FOUND", "Partition not found!");
+    }
+}
+
+/**
+ * Handle request for hostname.
+ */
+static void handleHostname()
+{
+    String hostname = WiFi.getHostname();
+
+    if (hostname.isEmpty())
+    {
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "HOSTNAME_NOT_FOUND", "Hostname not found!");
+    }
+    else
+    {
+        String payload = "\"hostname\": \"" + hostname + "\"";
+
+        sendSuccessPayloadResponse("Hostname retrieved successfully", payload);
     }
 }

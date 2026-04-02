@@ -17,6 +17,13 @@ The Pixelix updater application is flashed to a factory partition and provides t
 - [How To Integrate Into Pixelix](#how-to-integrate-into-pixelix)
 - [How To Update The PixelixUpdater](#how-to-update-the-pixelixupdater)
 - [Terminal](#terminal)
+- [Webserver REST API](#webserver-rest-api)
+  - [Response Format](#response-format)
+  - [Endpoints](#endpoints)
+    - [GET `/activateAppPartition`](#get-activateapppartition)
+    - [POST `/upload.html`](#post-uploadhtml)
+    - [GET `/partitionSize`](#get-partitionsize)
+    - [GET `/hostname`](#get-hostname)
 - [Used Libraries](#used-libraries)
 - [Issues, Ideas And Bugs](#issues-ideas-and-bugs)
 - [License](#license)
@@ -94,6 +101,129 @@ The PixelixUpdater provides some commands via serial interface.
 - Activate app0 as boot partition: ```activate app```
 
 Enter ```help``` to get a list of all supported commands.
+
+## Webserver REST API
+
+The PixelixUpdater provides a REST API for programmatic access to its functionality. All API responses use JSON format with a consistent structure:
+
+### Response Format
+
+**Success Response:**
+
+```json
+{
+  "data": {
+    "message": "Operation successful",
+    ...additional payload fields
+  }
+}
+```
+
+**Error Response:**
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error description"
+  }
+}
+```
+
+The `code` element is the machine readable and `message` the human readable error code.
+
+### Endpoints
+
+#### GET `/activateAppPartition`
+
+Switches from the factory partition back to the main application (Pixelix) and triggers a device restart.
+
+**Response (Success):**
+
+```json
+{
+  "data": {
+    "message": "Partition switched. Restarting..."
+  }
+}
+```
+
+**Response (Error):**
+
+- `APP0_PARTITION_NOT_FOUND`: App0 partition not found
+- `BOOT_SET_FAILED`: Failed to set app0 partition as boot partition
+- `FS_NOT_MOUNTABLE`: Filesystem partition is not mountable
+- `BOOT_UNKNOWN_ERROR`: Cannot switch to app0 partition
+
+#### POST `/upload.html`
+
+Uploads firmware or filesystem binary files. The upload type is determined by custom HTTP headers.
+
+**Request Headers:**
+
+- `X-File-Size-Firmware`: Size in bytes (for firmware upload)
+- `X-File-Size-Filesystem`: Size in bytes (for filesystem upload)
+
+**Response (Success):**
+
+```json
+{
+  "data": {
+    "message": "File upload successful."
+  }
+}
+```
+
+**Response (Error):**
+
+- `MISSING_SIZE_HEADER`: Missing size header in request
+- `UPLOAD_BEGIN_FAILED`: Failed to begin file upload
+- `UPLOAD_WRITE_FAILED`: Failed to write file upload
+- `UPLOAD_END_FAILED`: Failed to end file upload
+- `UPLOAD_ABORTED`: File upload aborted
+
+#### GET `/partitionSize`
+
+Retrieves the size of the firmware or filesystem partition.
+
+**Request Headers:**
+
+- `X-File-Size-Firmware`: Present (empty) for firmware partition size
+- `X-File-Size-Filesystem`: Present (empty) for filesystem partition size
+
+**Response (Success):**
+
+```json
+{
+  "data": {
+    "message": "Partition size retrieved successfully",
+    "size": 1966080
+  }
+}
+```
+
+**Response (Error):**
+
+- `PARTITION_NOT_FOUND`: Partition not found
+
+#### GET `/hostname`
+
+Retrieves the device hostname.
+
+**Response (Success):**
+
+```json
+{
+  "data": {
+    "message": "Hostname retrieved successfully",
+    "hostname": "PixelixUpdater-ABCD1234"
+  }
+}
+```
+
+**Response (Error):**
+
+- `HOSTNAME_NOT_FOUND`: Hostname not found
 
 ## Used Libraries
 

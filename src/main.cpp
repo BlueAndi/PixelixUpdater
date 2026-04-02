@@ -212,7 +212,18 @@ void setup()
     ESP_LOGI(LOG_TAG, "Partition: Factory");
 
     /* Start wifi */
-    (void)WiFi.mode(WIFI_STA);
+    if (false == WiFi.mode(WIFI_STA))
+    {
+        ESP_LOGE(LOG_TAG, "Failed to set WiFi mode");
+    }
+    else if (false == WiFi.setHostname(hostname.c_str()))
+    {
+        ESP_LOGE(LOG_TAG, "Failed to set WiFi hostname");
+    }
+    else
+    {
+        ESP_LOGI(LOG_TAG, "WiFi started in station mode");
+    }
 
     MyWebServer::begin();
 }
@@ -228,8 +239,10 @@ void loop()
 
     if (true == gMiniTerminal.isRestartRequested())
     {
+        const uint32_t RESTART_DELAY_MS = 100U;
+
         /* Give some time to send the response before restarting. */
-        delay(100U);
+        delay(RESTART_DELAY_MS);
 
         /* Disconnect WiFi graceful before restart. */
         if (WIFI_MODE_AP == WiFi.getMode())

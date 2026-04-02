@@ -109,16 +109,36 @@ utils.makeRequest = function(options) {
 
             xhr.onload = function() {
                 var jsonRsp = null;
+                var contentType = xhr.getResponseHeader("Content-Type");
+                var isJson = contentType && contentType.includes("application/json");
 
                 if (200 !== xhr.status) {
-                    if (true === isJsonResponse) {
+                    if (isJson) {
+                        try {
+                            jsonRsp = JSON.parse(xhr.response);
+                            reject(jsonRsp);
+                        } catch (e) {
+                            reject({ error: { code: "PARSE_ERROR", message: xhr.response } });
+                        }
+                    } else if (true === isJsonResponse) {
                         jsonRsp = JSON.parse(xhr.response);
                         reject(jsonRsp);
                     } else {
                         reject(xhr.response);
                     }
                 } else {
-                    if (true === isJsonResponse) {
+                    if (isJson) {
+                        try {
+                            jsonRsp = JSON.parse(xhr.response);
+                            if (jsonRsp.error) {
+                                reject(jsonRsp);
+                            } else {
+                                resolve(jsonRsp);
+                            }
+                        } catch (e) {
+                            reject({ error: { code: "PARSE_ERROR", message: "Failed to parse JSON response" } });
+                        }
+                    } else if (true === isJsonResponse) {
                         jsonRsp = JSON.parse(xhr.response);
 
                         if ("ok" === jsonRsp.status) {

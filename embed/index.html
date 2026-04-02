@@ -24,6 +24,9 @@
                 <div class="collapse navbar-collapse" id="navbarCollapse">
                     <ul class="navbar-nav me-auto" id="menu">
                     </ul>
+                    <span class="navbar-text" id="hostname-display">
+                        <i class="text-muted">Loading hostname...</i>
+                    </span>
                 </div>
             </nav>
         </header>
@@ -60,7 +63,7 @@
                         <div class="alert alert-warning" role="alert">
                             A filesystem update might cause a loss of all configuration data on the filesystem. Make sure you have a backup of your configuration before updating it. Backups can be done via the webinterface of Pixelix.
                         </div>
-                        <button class="btn btn-primary extra" type="button" onclick="sendPartitionChangeRequest();" disabled>Back to Pixelix</button>
+                        <button class="btn btn-primary extra" type="button" onclick="sendActivateAppPartition();" disabled>Back to Pixelix</button>
                         <p>Select your pixelix firmware binary here.</p>
                         <div class="input-group">
                             <input type="file" class="form-control" id="inputFirmwareFile" accept=".bin">
@@ -125,8 +128,8 @@
                 updateProgressBar("progressBar", progress);
             }
 
-            /* Request change of active partition. */
-            function sendPartitionChangeRequest() {
+            /* Request app partition activation. */
+            function sendActivateAppPartition() {
                 var intervalId = 0;
                 var seconds = 10;
 
@@ -134,9 +137,9 @@
                 
                 utils.makeRequest({
                     method: "GET",
-                    url: "/change-partition",
+                    url: "/activateAppPartition",
                 }).then(function(rsp) {
-                    return dialog.showInfo(`<p>Reload in ${seconds}s</p>`);
+                    return dialog.showInfo(`<p>${rsp.data.message}</p><p>Reload in ${seconds}s</p>`);
                 }).then(function() {
                     return new Promise(function(resolve) {
                         intervalId = setInterval(() => {
@@ -158,7 +161,10 @@
                     clearInterval(intervalId);
                     location.reload();
                 }).catch(function(rsp) {
-                    dialog.showError("<p>Error: " + rsp + "</p>")
+                    var errorMsg = rsp.error ? rsp.error.message : "Unknown error";
+                    var errorCode = rsp.error && rsp.error.code ? " (" + rsp.error.code + ")" : "";
+
+                    dialog.showError("<p>Error: " + errorMsg + errorCode + "</p>")
                     enableUI();
                 });
             }
@@ -170,10 +176,10 @@
 
                     return utils.makeRequest({
                         method: "GET",
-                        url: "/partition-size",
+                        url: "/partitionSize",
                         headers: headers,
                     }).then(function(rsp) {
-                        var size = parseInt(rsp, 10);
+                        var size = rsp.data.size;
 
                         if (fileSize > size) {
                             if("X-File-Size-Firmware" === fileHeader) {
@@ -188,7 +194,10 @@
                             return true;
                         }
                     }).catch(function(rsp) {
-                        dialog.showError("<p>Error: " + rsp + "</p>");
+                        var errorMsg = rsp.error ? rsp.error.message : "Unknown error";
+                        var errorCode = rsp.error && rsp.error.code ? " (" + rsp.error.code + ")" : "";
+
+                        dialog.showError("<p>Error: " + errorMsg + errorCode + "</p>");
                         return false;
                     });
                 }
@@ -220,9 +229,12 @@
                                 headers: fileHeaders,
                                 onProgress: updateProgressUpdate
                             }).then(function(rsp) {
-                                dialog.showInfo("<p>Upload successful.</p>")
+                                dialog.showInfo("<p>" + rsp.data.message + "</p>")
                             }).catch(function(rsp) {
-                                dialog.showError("<p>Error: " + rsp + "</p>")
+                                var errorMsg = rsp.error ? rsp.error.message : "Unknown error";
+                                var errorCode = rsp.error && rsp.error.code ? " (" + rsp.error.code + ")" : "";
+
+                                dialog.showError("<p>Error: " + errorMsg + errorCode + "</p>")
                             }).finally(function() {
                                 updateProgressBar("progressBar", 0);
                                 enableUI();
@@ -245,6 +257,18 @@
                 }
             }
 
+            /* Fetch and display hostname. */
+            function fetchHostname() {
+                utils.makeRequest({
+                    method: "GET",
+                    url: "/hostname",
+                }).then(function(rsp) {
+                    $("#hostname-display").html(rsp.data.hostname);
+                }).catch(function(rsp) {
+                    $("#hostname-display").html('<i class="text-warning">Hostname unavailable</i>');
+                });
+            }
+
             /* Execute after page is ready. */
             $(document).ready(function() {
                 $("#inputFirmwareFile").on("change", function() {
@@ -261,6 +285,7 @@
                     updateProgressBar("progressBar", 0);
                 });
 
+                fetchHostname();
                 enableUI();
             });
         </script>
