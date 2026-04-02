@@ -38,6 +38,7 @@
 #include <esp_log.h>
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
+#include <LittleFS.h>
 
 /******************************************************************************
  * Compiler Switches
@@ -76,39 +77,49 @@ static const char LOG_TAG[] = "BootPartition";
  * Private Methods
  *****************************************************************************/
 
+static bool isFsMountable();
+
 /******************************************************************************
  * External Functions
  *****************************************************************************/
 
 BootPartition::BootPartitionResult BootPartition::setApp0()
 {
-    BootPartitionResult    result    = BOOT_UNKNOWN_ERROR;
-    const esp_partition_t* partition = nullptr;
+    BootPartitionResult result = BOOT_UNKNOWN_ERROR;
 
-    partition                        = esp_partition_find_first(
-        esp_partition_type_t::ESP_PARTITION_TYPE_APP,
-        esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_APP_OTA_0,
-        nullptr);
-
-    if (nullptr != partition)
+    if (false == isFsMountable())
     {
-        esp_err_t err = esp_ota_set_boot_partition(partition);
-        ESP_LOGI(LOG_TAG, "Setting app0 partition '%s' as boot partition", partition->label);
-
-        if (ESP_OK != err)
-        {
-            ESP_LOGE(LOG_TAG, "Failed to set app0 partition '%s' as boot partition: %d", partition->label, err);
-            result = BOOT_SET_FAILED;
-        }
-        else
-        {
-            result = BOOT_SUCCESS;
-        }
+        result = BOOT_FS_NOT_MOUNTABLE;
     }
     else
     {
-        ESP_LOGE(LOG_TAG, "App0 partition not found!");
-        result = BOOT_PARTITION_NOT_FOUND;
+        const esp_partition_t* partition;
+
+        partition = esp_partition_find_first(
+            esp_partition_type_t::ESP_PARTITION_TYPE_APP,
+            esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_APP_OTA_0,
+            nullptr);
+
+        if (nullptr != partition)
+        {
+            esp_err_t err = esp_ota_set_boot_partition(partition);
+            ESP_LOGI(LOG_TAG, "Setting app0 partition '%s' as boot partition", partition->label);
+
+            if (ESP_OK != err)
+            {
+                ESP_LOGE(LOG_TAG, "Failed to set app0 partition '%s' as boot partition: %d", partition->label, err);
+                result = BOOT_SET_FAILED;
+            }
+            else
+            {
+                result = BOOT_SUCCESS;
+            }
+        }
+        else
+        {
+            ESP_LOGE(LOG_TAG, "App0 partition not found!");
+            result = BOOT_PARTITION_NOT_FOUND;
+        }
     }
 
     return result;
@@ -117,3 +128,34 @@ BootPartition::BootPartitionResult BootPartition::setApp0()
 /******************************************************************************
  * Local Functions
  *****************************************************************************/
+
+/**
+ * Check if the filesystem partition is mountable, which means it exists and is not encrypted.
+ *
+ * @return If the filesystem partition is mountable, it returns true, otherwise false.
+ */
+static bool isFsMountable()
+{
+    bool                   isMountable = false;
+    const esp_partition_t* partition;
+
+    partition = esp_partition_find_first(
+        esp_partition_type_t::ESP_PARTITION_TYPE_DATA,
+        esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_DATA_LITTLEFS,
+        nullptr);
+
+    if (nullptr != partition)
+    {
+        if (false == LittleFS.begin(false, "/littlefs", 10U, partition->label))
+        {
+            ESP_LOGE(LOG_TAG, "Failed to mount filesystem partition '%s'!", partition->label);
+        }
+        else
+        {
+            isMountable = true;
+            LittleFS.end();
+        }
+    }
+
+    return isMountable;
+}
