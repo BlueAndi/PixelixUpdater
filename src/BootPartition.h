@@ -65,11 +65,11 @@ namespace BootPartition
  */
 typedef enum
 {
-    BOOT_SUCCESS,
-    BOOT_PARTITION_NOT_FOUND,
-    BOOT_SET_FAILED,
-    BOOT_FS_NOT_MOUNTABLE,
-    BOOT_UNKNOWN_ERROR
+    BOOT_SUCCESS,             /**< App0 partition was set as boot partition successfully. */
+    BOOT_PARTITION_NOT_FOUND, /**< App0 partition was not found. */
+    BOOT_SET_FAILED,          /**< Failed to set App0 partition as boot partition. */
+    BOOT_FS_NOT_MOUNTABLE,    /**< File system on App0 partition is not mountable. */
+    BOOT_UNKNOWN_ERROR        /**< An unknown error occurred. */
 
 } BootPartitionResult;
 
