@@ -54,7 +54,7 @@
                     <div class="tab-pane fade active show" id="update" role="tabpanel" aria-labelledby="update-tab">
                         <br />
                         <p>This is were you would do a configuration backup in Pixelix. After you're done, you can go to the PixelixUpdater to upload your firmware or filesystem binary.</p>
-                        <button class="btn btn-primary" type="button" onclick="sendPartitionChangeRequest();">Go to PixelixUpdater</button>
+                        <button class="btn btn-primary" type="button" onclick="sendPartitionChangeRequest();" disabled>Go to PixelixUpdater</button>
                     </div>
 
                 </div>
@@ -92,26 +92,41 @@
 
             /* Request change of active partition. */
             function sendPartitionChangeRequest() {
+                var intervalId = 0;
+                var seconds = 10;
+
                 disableUI();
 
                 utils.makeRequest({
                     method: "GET",
-                    url: "/change-partition",
+                    url: "/activateFactoryPartition",
                 }).then(function(rsp) {
-                    let seconds = 20;
-                    dialog.showInfo(`<p>Reload in ${seconds}s</p>`);
+                    return dialog.showInfo(`<p>${rsp.data.message}</p><p>Reload in ${seconds}s</p>`);
+                }).then(function() {
+                    return new Promise(function(resolve) {
+                        intervalId = setInterval(() => {
+                            if (0 < seconds) {
+                                seconds--;
+                                dialog.updateMessage(`<p>Reload in ${seconds}s</p>`);
+                            }
 
-                    const intervalId = setInterval(() => {
-                        seconds--;
-                        if (seconds > 0) {
-                            dialog.showInfo(`<p>Reload in ${seconds}s</p>`);
-                        } else {
-                            clearInterval(intervalId);
-                            location.reload();
-                        }
-                    }, 1000);
+                            if (0 === seconds) {
+                                resolve();
+                            }
+                        }, 1000);
+
+                        $("#modalDialog .btn-secondary").click(function() {
+                            resolve();
+                        });
+                    });
+                }).then(function() {
+                    clearInterval(intervalId);
+                    location.reload();
                 }).catch(function(rsp) {
-                    dialog.showError("<p>Error: " + rsp + "</p>")
+                    var errorMsg = rsp.error ? rsp.error.message : "Unknown error";
+                    var errorCode = rsp.error && rsp.error.code ? " (" + rsp.error.code + ")" : "";
+
+                    dialog.showError("<p>Error: " + errorMsg + errorCode + "</p>")
                     enableUI();
                 });
             }
@@ -121,9 +136,9 @@
                 $("#inputFile").on("change", function() {
                     var fileName = $(this).val().split("\\").pop();
                     $(this).next(".custom-file-label").addClass("selected").html(fileName);
-
-                    updateProgressBar("progressBar", 0);
                 });
+
+                enableUI();
             });
         </script>
     </body>

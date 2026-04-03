@@ -1,3 +1,5 @@
+"use strict";
+
 var utils = window.utils || {};
 
 utils.enableForm = function(formId, enableIt) {
@@ -49,7 +51,7 @@ utils.obj2FormData = function(obj, formData = new FormData()) {
     this.createFormData(obj);
 
     return this.formData;
-}
+};
 
 utils.makeRequest = function(options) {
     return new Promise(function(resolve, reject) {
@@ -107,16 +109,36 @@ utils.makeRequest = function(options) {
 
             xhr.onload = function() {
                 var jsonRsp = null;
+                var contentType = xhr.getResponseHeader("Content-Type");
+                var isJson = contentType && contentType.includes("application/json");
 
                 if (200 !== xhr.status) {
-                    if (true === isJsonResponse) {
+                    if (isJson) {
+                        try {
+                            jsonRsp = JSON.parse(xhr.response);
+                            reject(jsonRsp);
+                        } catch (e) {
+                            reject({ error: { code: "PARSE_ERROR", message: xhr.response } });
+                        }
+                    } else if (true === isJsonResponse) {
                         jsonRsp = JSON.parse(xhr.response);
                         reject(jsonRsp);
                     } else {
                         reject(xhr.response);
                     }
                 } else {
-                    if (true === isJsonResponse) {
+                    if (isJson) {
+                        try {
+                            jsonRsp = JSON.parse(xhr.response);
+                            if (jsonRsp.error) {
+                                reject(jsonRsp);
+                            } else {
+                                resolve(jsonRsp);
+                            }
+                        } catch (e) {
+                            reject({ error: { code: "PARSE_ERROR", message: "Failed to parse JSON response" } });
+                        }
+                    } else if (true === isJsonResponse) {
                         jsonRsp = JSON.parse(xhr.response);
 
                         if ("ok" === jsonRsp.status) {
@@ -146,56 +168,5 @@ utils.makeRequest = function(options) {
                 xhr.send(formData);
             }
         }
-    });
-};
-
-utils.readJsonFile = function(file) {
-    return new Promise(function(resolve, reject) {
-        var rawFile = new XMLHttpRequest();
-
-        rawFile.overrideMimeType("application/json");
-        rawFile.open("GET", file, true);
-        rawFile.onreadystatechange = function() {
-            if ((4 == rawFile.readyState) && ("200" == rawFile.status)) {
-                resolve(rawFile.responseText);
-            }
-        }
-        rawFile.send(null);
-    });
-};
-
-utils.checkBMPFile = function(file) {
-    return new Promise(function(resolve, reject) {
-        var reader = new FileReader();
-
-        reader.onload = function(e) {
-            resolve(e.target.result);
-        };
-
-        reader.readAsArrayBuffer(file);
-    }).then(function(buffer) {
-        var bitmapHeaderSize = 54;
-        var header = new Uint8Array(buffer, 0, bitmapHeaderSize);
-        var planes = (header[27] << 8) | (header[26] << 0);
-        var bitsPerPixel = (header[29] << 8) | (header[28] << 0);
-        var compression = (header[33] << 24) | (header[32] << 16) | (header[31] << 8) | (header[30] << 0);
-        var paletteColors = (header[49] << 24) | (header[48] << 16) | (header[47] << 8) | (header[46] << 0);
-        var promise = null;
-
-        if ("BM" !== String.fromCharCode.apply(null, header.subarray(0, 2))) {
-            promise = Promise.reject("No bitmap file.");
-        } else if (1 !== planes) {
-            promise = Promise.reject("Only 1 plane is supported.");
-        } else if ((24 !== bitsPerPixel) && (32 !== bitsPerPixel)) {
-            promise = Promise.reject("Only 24 or 32 bpp are supported.");
-        } else if (0 !== compression) {
-            promise = Promise.reject("No compression is supported.");
-        } else if (0 !== paletteColors) {
-            promise = Promise.reject("Color palette not supported.");
-        } else {
-            promise = Promise.resolve();
-        }
-
-        return promise;
     });
 };

@@ -39,6 +39,9 @@
 #include <DNSServer.h>
 #include <LittleFS.h>
 
+#include "HttpStatus.h"
+#include "BootPartition.h"
+
 #include <esp_log.h>
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
@@ -72,166 +75,32 @@ typedef enum
 
 } State;
 
-/**
- * Result of setting boot partition.
- */
-typedef enum
-{
-    BOOT_SUCCESS,
-    BOOT_PARTITION_NOT_FOUND,
-    BOOT_SET_FAILED,
-    BOOT_UNKNOWN_ERROR
-
-} BootPartitionResult;
-
-/**
- * This type defines supported HTTP response status codes according to RFC7231.
- */
-enum HTTPStatusCode
-{
-    STATUS_CODE_CONTINUE                        = 100, /**< Continue */
-    STATUS_CODE_SWITCHING_PROTOCOLS             = 101, /**< Switching Protocols */
-    STATUS_CODE_PROCESSING                      = 102, /**< Processing */
-    STATUS_CODE_OK                              = 200, /**< Ok */
-    STATUS_CODE_CREATED                         = 201, /**< Created */
-    STATUS_CODE_ACCEPTED                        = 202, /**< Accepted */
-    STATUS_CODE_NON_AUTHORITATIVE_INFORMATION   = 203, /**< Non-Authoritative Information */
-    STATUS_CODE_NO_CONTENT                      = 204, /**< No Content */
-    STATUS_CODE_RESET_CONTENT                   = 205, /**< Reset Content */
-    STATUS_CODE_PARTIAL_CONTENT                 = 206, /**< Partial Content */
-    STATUS_CODE_MULTI_STATUS                    = 207, /**< Multi-Status */
-    STATUS_CODE_ALREADY_REPORTED                = 208, /**< Already Reported */
-    STATUS_CODE_IM_USED                         = 226, /**< IM Used */
-    STATUS_CODE_MULTIPLE_CHOICES                = 300, /**< Multiple Choices */
-    STATUS_CODE_MOVED_PERMANENTLY               = 301, /**< Moved Permantently */
-    STATUS_CODE_FOUND                           = 302, /**< Found */
-    STATUS_CODE_SEE_OTHER                       = 303, /**< See Other */
-    STATUS_CODE_NOT_MODIFIED                    = 304, /**< Not Modified */
-    STATUS_CODE_USE_PROXY                       = 305, /**< Use Proxy */
-    STATUS_CODE_TEMPORARY_REDIRECT              = 307, /**< Temporary Redirect */
-    STATUS_CODE_PERMANENT_REDIRECT              = 308, /**< Permanent Redirect */
-    STATUS_CODE_BAD_REQUEST                     = 400, /**< Bad Request */
-    STATUS_CODE_UNAUTHORIZED                    = 401, /**< Unauthorized */
-    STATUS_CODE_PAYMENT_REQUIRED                = 402, /**< Payment Required */
-    STATUS_CODE_FORBIDDEN                       = 403, /**< Forbidden */
-    STATUS_CODE_NOT_FOUND                       = 404, /**< Not Found */
-    STATUS_CODE_METHOD_NOT_ALLOWED              = 405, /**< Method Not Allowed */
-    STATUS_CODE_NOT_ACCEPTABLE                  = 406, /**< Not Acceptable */
-    STATUS_CODE_PROXY_AUTHENTICATION_REQUIRED   = 407, /**< Proxy Authentication Required */
-    STATUS_CODE_REQUEST_TIMEOUT                 = 408, /**< Request Timeout */
-    STATUS_CODE_CONFLICT                        = 409, /**< Conflict */
-    STATUS_CODE_GONE                            = 410, /**< Gone */
-    STATUS_CODE_LENGTH_REQUIRED                 = 411, /**< Length Required */
-    STATUS_CODE_PRECONDITION_FAILED             = 412, /**< Precondition Failed */
-    STATUS_CODE_PAYLOAD_TOO_LARGE               = 413, /**< Payload Too Large */
-    STATUS_CODE_URI_TOO_LONG                    = 414, /**< URI Too Long */
-    STATUS_CODE_UNSUPPORTED_MEDIA_TYPE          = 415, /**< Unsupported Media Type */
-    STATUS_CODE_RANGE_NOT_SATISFIABLE           = 416, /**< Range Not Satisfiable */
-    STATUS_CODE_EXPECTATION_FAILED              = 417, /**< Expectation Failed */
-    STATUS_CODE_MISDIRECTED_REQUEST             = 421, /**< Misdirected Request */
-    STATUS_CODE_UNPROCESSABLE_ENTITY            = 422, /**< Unprocessable Entity */
-    STATUS_CODE_LOCKED                          = 423, /**< Locked */
-    STATUS_CODE_FAILED_DEPENDENCY               = 424, /**< Failed Dependency */
-    STATUS_CODE_UPGRADE_REQUIRED                = 426, /**< Upgrade Required */
-    STATUS_CODE_PRECONDITION_REQUIRED           = 428, /**< Precondition Required */
-    STATUS_CODE_TOO_MANY_REQUESTS               = 429, /**< Too Many Requests */
-    STATUS_CODE_REQUEST_HEADER_FIELDS_TOO_LARGE = 431, /**< Request Header Fields Too Large */
-    STATUS_CODE_INTERNAL_SERVER_ERROR           = 500, /**< Internal Server Error */
-    STATUS_CODE_NOT_IMPLEMENTED                 = 501, /**< Not Implemented */
-    STATUS_CODE_BAD_GATEWAY                     = 502, /**< Bad Gateway */
-    STATUS_CODE_SERVICE_UNAVAILABLE             = 503, /**< Service Unavailable */
-    STATUS_CODE_GATEWAY_TIMEOUT                 = 504, /**< Gateway Timeout */
-    STATUS_CODE_HTTP_VERSION_NOT_SUPPORTED      = 505, /**< Http Version Not Supported */
-    STATUS_CODE_VARIANT_ALSO_NEGOTIATES         = 506, /**< Variant Also Negotiates */
-    STATUS_CODE_INSUFFICIENT_STORAGE            = 507, /**< Insufficient Storage */
-    STATUS_CODE_LOOP_DETECTED                   = 508, /**< Loop Detected */
-    STATUS_CODE_NOT_EXTENDED                    = 510, /**< Not Extended */
-    STATUS_CODE_NETWORK_AUTHENTICATION_REQUIRED = 511  /**< Network Authentication Required */
-};
-
 /******************************************************************************
  * Prototypes
  *****************************************************************************/
 
-/**
- * Load settings from preferences to be used by the application.
- * If no settings are found, default values will be used.
- *
- * The settings are stored in the preferences storage, which is a key-value
- * storage. The keys are defined by Pixelix!
- */
+#ifdef ARDUINO_USB_CDC_ON_BOOT
+#if (ARDUINO_USB_CDC_ON_BOOT == 1)
+static int logVprintf(const char* format, va_list arg);
+#endif /* (ARDUINO_USB_CDC_ON_BOOT == 1) */
+#endif /* ARDUINO_USB_CDC_ON_BOOT */
+
 static void loadSettings();
-
-/**
- * Append device unique ID to string.
- * The device unique ID is derived from factory programmed wifi MAC address.
- *
- * @param[in,out] dst   Destination string to append the device unique id to.
- */
 static void appendDeviceUniqueId(String& deviceUniqueId);
-
-/**
- * Get the unique chip id.
- *
- * @param[out] chipId   Chip id
- */
 static void getChipId(String& chipId);
-
-/**
- * Set the factory partition active to be the next boot partition.
- *
- * @return BootPartitionResult indicating wether factory was set as boot partition successfully or not.
- */
-static BootPartitionResult setFactoryAsBootPartition();
-
-/**
- * Setup the web server.
- */
+static void sendJsonResponse(HttpStatus::StatusCode status, const String& json);
+static void sendSuccessResponse(const String& message);
+static void sendSuccessPayloadResponse(const String& message, const String& jsonPayload);
+static void sendErrorResponse(HttpStatus::StatusCode status, const String& code, const String& message);
 static void setupWebServer();
-
-/**
- * State machine function to handle the current state of the application.
- * This function is called periodically in the loop() function.
- */
 static void stateMachine();
-
-/**
- * State machine function for the init state.
- * This is the initial state of the application.
- */
 static void stateInit();
-
-/**
- * State machine function for the setup of the WiFi station.
- * This state is entered when the device is not connected to a WiFi network
- * and needs to setup the WiFi station.
- */
 static void stateStaSetup();
-
-/**
- * State machine function for the connecting state.
- * This state is entered when the wifi station was setup successfully.
- */
 static void stateStaConnecting();
-
-/**
- * State machine function for the connected state.
- * This state is entered when the device is connected to the WiFi network.
- */
 static void stateStaConnected();
-
-/**
- * State machine function for the setup of the Access Point.
- * This state is entered when the device is not connected to a WiFi network
- * and needs to setup the Access Point.
- */
 static void stateApSetup();
-
-/**
- * State machine function for the Access Point up state.
- * This state is entered when the Access Point is up and running.
- */
 static void stateApUp();
+static void handleActivateFactoryPartition();
 
 /******************************************************************************
  * Variables
@@ -378,6 +247,12 @@ static const char* gStaticRoutes[] = {
  */
 void setup()
 {
+    const bool    FORMAT_ON_FAIL           = false;
+    const char*   BASE_PATH                = "/littlefs";
+    const uint8_t MAX_OPEN_FILES           = 10U;
+    const char*   PARTITION_LABEL_LITTLEFS = "littlefs";
+    const char*   PARTITION_LABEL_SPIFFS   = "spiffs";
+
     /* Setup serial interface */
     Serial.begin(SERIAL_BAUDRATE);
 
@@ -387,18 +262,47 @@ void setup()
 #endif /* ARDUINO_USB_CDC_ON_BOOT */
 #endif /* ARDUINO_USB_MODE */
 
+#ifdef CONFIG_PIN_BUZZER_OUT
+    /* Disable buzzer. */
+    pinMode(CONFIG_PIN_BUZZER_OUT, OUTPUT);
+    digitalWrite(CONFIG_PIN_BUZZER_OUT, LOW);
+#endif /* CONFIG_PIN_BUZZER_OUT */
+
     /* Ensure a distance between the boot mode message and the first log message.
      * Otherwise the first log message appears in the same line than the last
      * boot mode message.
      */
     Serial.println("\n");
 
+#ifdef ARDUINO_USB_CDC_ON_BOOT
+#if (ARDUINO_USB_CDC_ON_BOOT == 1)
+
+    /* Route ESP-IDF logging to Serial, because USB CDC is used on boot. */
+    esp_log_set_vprintf(&logVprintf);
+
+#endif /* (ARDUINO_USB_CDC_ON_BOOT == 1) */
+#endif /* ARDUINO_USB_CDC_ON_BOOT */
+
     /* Set severity for esp logging system. */
     esp_log_level_set("*", CONFIG_ESP_LOG_SEVERITY);
 
-    if (false == LittleFS.begin())
+    LittleFS.end(); /* Just to be sure, that the file system is not already mounted. */
+
+    /* Mount the file system. */
+    if (false == LittleFS.begin(FORMAT_ON_FAIL, BASE_PATH, MAX_OPEN_FILES, PARTITION_LABEL_LITTLEFS))
     {
-        Serial.println("LittleFS Mount Failed\n");
+        if (false == LittleFS.begin(FORMAT_ON_FAIL, BASE_PATH, MAX_OPEN_FILES, PARTITION_LABEL_SPIFFS))
+        {
+            ESP_LOGE(LOG_TAG, "LittleFS mount failed");
+        }
+        else
+        {
+            ESP_LOGI(LOG_TAG, "LittleFS mounted successfully with SPIFFS partition.");
+        }
+    }
+    else
+    {
+        ESP_LOGI(LOG_TAG, "LittleFS mounted successfully with LittleFS partition.");
     }
 
     /* Load settings from the persistent storage. */
@@ -414,7 +318,18 @@ void setup()
     ESP_LOGI(LOG_TAG, "Partition: App");
 
     /* Start wifi */
-    (void)WiFi.mode(WIFI_STA);
+    if (false == WiFi.mode(WIFI_STA))
+    {
+        ESP_LOGE(LOG_TAG, "Failed to set WiFi mode");
+    }
+    else if (false == WiFi.setHostname(gSettingsHostname.c_str()))
+    {
+        ESP_LOGE(LOG_TAG, "Failed to set WiFi hostname");
+    }
+    else
+    {
+        ESP_LOGI(LOG_TAG, "WiFi started in station mode");
+    }
 
     setupWebServer();
 }
@@ -434,6 +349,50 @@ void loop()
 /******************************************************************************
  * Local functions
  *****************************************************************************/
+
+#ifdef ARDUINO_USB_CDC_ON_BOOT
+#if (ARDUINO_USB_CDC_ON_BOOT == 1)
+
+/**
+ * Custom vprintf function for ESP-IDF logging.
+ * Routes all log output to USB Serial (Serial).
+ *
+ * @param[in] format    Format string
+ * @param[in] arg       Variable argument list
+ *
+ * @return Number of characters written
+ */
+static int logVprintf(const char* format, va_list arg)
+{
+    int result = 0;
+
+    if (nullptr != format)
+    {
+        char buffer[256];
+        int  length = vsnprintf(buffer, sizeof(buffer), format, arg);
+
+        if (0 < length)
+        {
+            /* Ensure '\0' termination */
+            if (sizeof(buffer) <= static_cast<size_t>(length))
+            {
+                buffer[sizeof(buffer) - 1] = '\0';
+                result                     = sizeof(buffer) - 1;
+            }
+            else
+            {
+                result = length;
+            }
+
+            Serial.print(buffer);
+        }
+    }
+
+    return result;
+}
+
+#endif /* (ARDUINO_USB_CDC_ON_BOOT == 1) */
+#endif /* ARDUINO_USB_CDC_ON_BOOT */
 
 /**
  * Load settings from preferences to be used by the application.
@@ -507,42 +466,54 @@ static void getChipId(String& chipId)
 }
 
 /**
- * Set the factory partition active to be the next boot partition.
+ * Send a JSON response to the client.
  *
- * @return BootPartitionResult indicating wether factory was set as boot partition successfully or not.
+ * @param[in] status    HTTP status code to send.
+ * @param[in] json      JSON string to send as the response body.
  */
-static BootPartitionResult setFactoryAsBootPartition()
+static void sendJsonResponse(HttpStatus::StatusCode status, const String& json)
 {
-    BootPartitionResult    result    = BOOT_UNKNOWN_ERROR;
-    const esp_partition_t* partition = nullptr;
+    gWebServer.send(status, "application/json", json);
+}
 
-    partition                        = esp_partition_find_first(
-        esp_partition_type_t::ESP_PARTITION_TYPE_APP,
-        esp_partition_subtype_t::ESP_PARTITION_SUBTYPE_APP_FACTORY,
-        nullptr);
 
-    if (nullptr != partition)
-    {
-        esp_err_t err = esp_ota_set_boot_partition(partition);
-        ESP_LOGI(LOG_TAG, "Setting factory partition '%s' as boot partition", partition->label);
+/**
+ * Send a success response to the client.
+ *
+ * @param[in] message  Success message to send.
+ */
+static void sendSuccessResponse(const String& message)
+{
+    String json = "{ \"data\": { \"message\": \"" + message + "\" } }";
 
-        if (ESP_OK != err)
-        {
-            ESP_LOGE(LOG_TAG, "Failed to set factory partition '%s' as boot partition: %d", partition->label, err);
-            result = BOOT_SET_FAILED;
-        }
-        else
-        {
-            result = BOOT_SUCCESS;
-        }
-    }
-    else
-    {
-        ESP_LOGE(LOG_TAG, "Factory partition not found!");
-        result = BOOT_PARTITION_NOT_FOUND;
-    }
+    sendJsonResponse(HttpStatus::STATUS_CODE_OK, json);
+}
 
-    return result;
+/**
+ * Send a success response with a JSON payload to the client.
+ *
+ * @param[in] message      Success message to send.
+ * @param[in] jsonPayload  JSON payload to include in the response.
+ */
+static void sendSuccessPayloadResponse(const String& message, const String& jsonPayload)
+{
+    String json = "{ \"data\": { \"message\": \"" + message + "\", " + jsonPayload + " } }";
+
+    sendJsonResponse(HttpStatus::STATUS_CODE_OK, json);
+}
+
+/**
+ * Send an error response to the client.
+ *
+ * @param[in] status    HTTP status code to send.
+ * @param[in] code      Error code to send.
+ * @param[in] message   Error message to send.
+ */
+static void sendErrorResponse(HttpStatus::StatusCode status, const String& code, const String& message)
+{
+    String json = "{ \"error\": { \"code\": \"" + code + "\", \"message\": \"" + message + "\" } }";
+
+    sendJsonResponse(status, json);
 }
 
 /**
@@ -559,15 +530,16 @@ static void setupWebServer()
     gWebServer.onNotFound(
         []() {
             gWebServer.sendHeader("Location", "/");
-            gWebServer.send(STATUS_CODE_FOUND, "text/plain", "");
+            gWebServer.send(HttpStatus::STATUS_CODE_FOUND, "text/plain", "");
         });
 
     /* Provide index.html from filesystem. */
     gWebServer.on("/", HTTP_GET, []() {
         File file = LittleFS.open("/index.html", "r");
+
         if (false == file)
         {
-            gWebServer.send(STATUS_CODE_NOT_FOUND, "text/plain", "File not found");
+            gWebServer.send(HttpStatus::STATUS_CODE_NOT_FOUND, "text/plain", "File not found");
         }
         else
         {
@@ -576,32 +548,7 @@ static void setupWebServer()
         }
     });
 
-    gWebServer.on("/change-partition", HTTP_GET, []() {
-        switch (setFactoryAsBootPartition())
-        {
-        case BOOT_SUCCESS: {
-            const uint32_t RESTART_DELAY = 100U; /* ms */
-
-            gWebServer.send(STATUS_CODE_OK, "text/plain", "Partition switched. Restarting...");
-
-            /* To ensure that a positive response will be sent before the device restarts,
-             * a short delay is necessary.
-             */
-            delay(RESTART_DELAY);
-            ESP.restart();
-            break;
-        }
-        case BOOT_PARTITION_NOT_FOUND:
-            gWebServer.send(STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Factory partition not found!");
-            break;
-        case BOOT_SET_FAILED:
-            gWebServer.send(STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Failed to set factory partition as boot partition!");
-            break;
-        case BOOT_UNKNOWN_ERROR:
-            gWebServer.send(STATUS_CODE_INTERNAL_SERVER_ERROR, "text/plain", "Cannot switch to factory partition. Error unknown!");
-            break;
-        }
-    });
+    gWebServer.on("/activateFactoryPartition", HTTP_GET, handleActivateFactoryPartition);
 
     /* Serve files with static content. */
     while (UTIL_ARRAY_NUM(gStaticRoutes) > idx)
@@ -791,4 +738,51 @@ static void stateApSetup()
 static void stateApUp()
 {
     /* Nothing to do. */
+}
+
+/**
+ * Handle activation of the factory partition.
+ */
+static void handleActivateFactoryPartition()
+{
+    switch (BootPartition::setFactory())
+    {
+    case BootPartition::BOOT_SUCCESS: {
+        const uint32_t RESTART_DELAY = 100U; /* ms */
+
+        sendSuccessResponse("Partition switched. Restarting...");
+
+        /* To ensure that a positive response will be sent before the device restarts,
+         * a short delay is necessary.
+         */
+        delay(RESTART_DELAY);
+
+        /* Disconnect WiFi graceful before restart. */
+        if (WIFI_MODE_AP == WiFi.getMode())
+        {
+            /* In AP mode, stop the access point. */
+            (void)WiFi.softAPdisconnect();
+        }
+        else
+        {
+            /* In STA mode, disconnect from the access point. */
+            (void)WiFi.disconnect();
+        }
+
+        ESP.restart();
+        break;
+    }
+
+    case BootPartition::BOOT_PARTITION_NOT_FOUND:
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "FACTORY_PARTITION_NOT_FOUND", "Factory partition not found!");
+        break;
+
+    case BootPartition::BOOT_SET_FAILED:
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "BOOT_SET_FAILED", "Failed to set factory partition as boot partition!");
+        break;
+
+    case BootPartition::BOOT_UNKNOWN_ERROR:
+        sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "BOOT_UNKNOWN_ERROR", "Cannot switch to factory partition. Error unknown!");
+        break;
+    }
 }
