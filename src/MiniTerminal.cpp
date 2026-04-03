@@ -239,11 +239,7 @@ void MiniTerminal::cmdWriteWifiPassphrase(const char* par)
     {
         Settings& settings = Settings::getInstance();
 
-        if (' ' != par[0])
-        {
-            writeError("Missing space after command.\n");
-        }
-        else if (false == settings.open(false))
+        if (false == settings.open(false))
         {
             writeError();
         }
@@ -251,7 +247,7 @@ void MiniTerminal::cmdWriteWifiPassphrase(const char* par)
         {
             KeyValueString& wifiPassword = settings.getWifiPassphrase();
 
-            wifiPassword.setValue(&par[1]); /* Skip leading space */
+            wifiPassword.setValue(par);
             settings.close();
 
             writeSuccessful();
@@ -265,11 +261,7 @@ void MiniTerminal::cmdWriteWifiSSID(const char* par)
     {
         Settings& settings = Settings::getInstance();
 
-        if (' ' != par[0])
-        {
-            writeError("Missing space after command.\n");
-        }
-        else if (false == settings.open(false))
+        if (false == settings.open(false))
         {
             writeError();
         }
@@ -277,7 +269,7 @@ void MiniTerminal::cmdWriteWifiSSID(const char* par)
         {
             KeyValueString& wifiSSID = settings.getWifiSSID();
 
-            wifiSSID.setValue(&par[1]); /* Skip leading space */
+            wifiSSID.setValue(par);
             settings.close();
 
             writeSuccessful();
