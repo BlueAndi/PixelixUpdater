@@ -74,6 +74,12 @@ typedef enum
  * Prototypes
  *****************************************************************************/
 
+#ifdef ARDUINO_USB_CDC_ON_BOOT
+#if (ARDUINO_USB_CDC_ON_BOOT == 1)
+static int logVprintf(const char* format, va_list arg);
+#endif /* (ARDUINO_USB_CDC_ON_BOOT == 1) */
+#endif /* ARDUINO_USB_CDC_ON_BOOT */
+
 static void appendDeviceUniqueId(String& deviceUniqueId);
 static void getChipId(String& chipId);
 static void stateMachine();
@@ -189,6 +195,15 @@ void setup()
      */
     Serial.println("\n");
 
+#ifdef ARDUINO_USB_CDC_ON_BOOT
+#if (ARDUINO_USB_CDC_ON_BOOT == 1)
+
+    /* Route ESP-IDF logging to Serial, because USB CDC is used on boot. */
+    esp_log_set_vprintf(&logVprintf);
+
+#endif /* (ARDUINO_USB_CDC_ON_BOOT == 1) */
+#endif /* ARDUINO_USB_CDC_ON_BOOT */
+
     /* Set severity for esp logging system. */
     esp_log_level_set("*", CONFIG_ESP_LOG_SEVERITY);
 
@@ -266,6 +281,50 @@ void loop()
 /******************************************************************************
  * Local functions
  *****************************************************************************/
+
+#ifdef ARDUINO_USB_CDC_ON_BOOT
+#if (ARDUINO_USB_CDC_ON_BOOT == 1)
+
+/**
+ * Custom vprintf function for ESP-IDF logging.
+ * Routes all log output to USB Serial (Serial).
+ *
+ * @param[in] format    Format string
+ * @param[in] arg       Variable argument list
+ *
+ * @return Number of characters written
+ */
+static int logVprintf(const char* format, va_list arg)
+{
+    int result = 0;
+
+    if (nullptr != format)
+    {
+        char buffer[256];
+        int  length = vsnprintf(buffer, sizeof(buffer), format, arg);
+
+        if (0 < length)
+        {
+            /* Ensure '\0' termination */
+            if (sizeof(buffer) <= static_cast<size_t>(length))
+            {
+                buffer[sizeof(buffer) - 1] = '\0';
+                result                     = sizeof(buffer) - 1;
+            }
+            else
+            {
+                result = length;
+            }
+
+            Serial.print(buffer);
+        }
+    }
+
+    return result;
+}
+
+#endif /* (ARDUINO_USB_CDC_ON_BOOT == 1) */
+#endif /* ARDUINO_USB_CDC_ON_BOOT */
 
 /**
  * Append device unique ID to string.
