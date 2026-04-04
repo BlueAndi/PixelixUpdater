@@ -74,10 +74,8 @@ typedef enum
  * Prototypes
  *****************************************************************************/
 
-#ifdef ARDUINO_USB_CDC_ON_BOOT
-#if (ARDUINO_USB_CDC_ON_BOOT == 1)
+#if ARDUINO_USB_CDC_ON_BOOT
 static int logVprintf(const char* format, va_list arg);
-#endif /* (ARDUINO_USB_CDC_ON_BOOT == 1) */
 #endif /* ARDUINO_USB_CDC_ON_BOOT */
 
 static void appendDeviceUniqueId(String& deviceUniqueId);
@@ -195,13 +193,11 @@ void setup()
      */
     Serial.println("\n");
 
-#ifdef ARDUINO_USB_CDC_ON_BOOT
-#if (ARDUINO_USB_CDC_ON_BOOT == 1)
+#if ARDUINO_USB_CDC_ON_BOOT
 
     /* Route ESP-IDF logging to Serial, because USB CDC is used on boot. */
     esp_log_set_vprintf(&logVprintf);
 
-#endif /* (ARDUINO_USB_CDC_ON_BOOT == 1) */
 #endif /* ARDUINO_USB_CDC_ON_BOOT */
 
     /* Set severity for esp logging system. */
@@ -282,8 +278,7 @@ void loop()
  * Local functions
  *****************************************************************************/
 
-#ifdef ARDUINO_USB_CDC_ON_BOOT
-#if (ARDUINO_USB_CDC_ON_BOOT == 1)
+#if ARDUINO_USB_CDC_ON_BOOT
 
 /**
  * Custom vprintf function for ESP-IDF logging.
@@ -323,7 +318,6 @@ static int logVprintf(const char* format, va_list arg)
     return result;
 }
 
-#endif /* (ARDUINO_USB_CDC_ON_BOOT == 1) */
 #endif /* ARDUINO_USB_CDC_ON_BOOT */
 
 /**

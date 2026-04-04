@@ -393,49 +393,52 @@ static void handleActivateAppPartition()
 {
     if (true == requireAuthentication())
     {
-        switch (BootPartition::setApp0())
+        if (false == BootPartition::isFsMountable())
         {
-        case BootPartition::BOOT_SUCCESS: {
-            const uint32_t RESTART_DELAY = 100U; /* ms */
-
-            sendSuccessResponse("Partition switched. Restarting...");
-
-            /* To ensure that a positive response will be sent before the device restarts,
-             * a short delay is necessary.
-             */
-            delay(RESTART_DELAY);
-
-            /* Disconnect WiFi graceful before restart. */
-            if (WIFI_MODE_AP == WiFi.getMode())
-            {
-                /* In AP mode, stop the access point. */
-                (void)WiFi.softAPdisconnect();
-            }
-            else
-            {
-                /* In STA mode, disconnect from the access point. */
-                (void)WiFi.disconnect();
-            }
-
-            ESP.restart();
-            break;
+            sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "FS_NOT_MOUNTABLE", "Filesystem partition is not mountable. Cannot switch to app0 partition!");
         }
+        else
+        {
+            switch (BootPartition::setApp0())
+            {
+            case BootPartition::BOOT_SUCCESS: {
+                const uint32_t RESTART_DELAY = 100U; /* ms */
 
-        case BootPartition::BOOT_PARTITION_NOT_FOUND:
-            sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "APP0_PARTITION_NOT_FOUND", "App0 partition not found!");
-            break;
+                sendSuccessResponse("Partition switched. Restarting...");
 
-        case BootPartition::BOOT_SET_FAILED:
-            sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "BOOT_SET_FAILED", "Failed to set app0 partition as boot partition!");
-            break;
+                /* To ensure that a positive response will be sent before the device restarts,
+                 * a short delay is necessary.
+                 */
+                delay(RESTART_DELAY);
 
-        case BootPartition::BOOT_FS_NOT_MOUNTABLE:
-            sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "FS_NOT_MOUNTABLE", "Filesystem partition is not mountable!");
-            break;
+                /* Disconnect WiFi graceful before restart. */
+                if (WIFI_MODE_AP == WiFi.getMode())
+                {
+                    /* In AP mode, stop the access point. */
+                    (void)WiFi.softAPdisconnect();
+                }
+                else
+                {
+                    /* In STA mode, disconnect from the access point. */
+                    (void)WiFi.disconnect();
+                }
 
-        case BootPartition::BOOT_UNKNOWN_ERROR:
-            sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "BOOT_UNKNOWN_ERROR", "Cannot switch to app0 partition. Error unknown!");
-            break;
+                ESP.restart();
+                break;
+            }
+
+            case BootPartition::BOOT_PARTITION_NOT_FOUND:
+                sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "APP0_PARTITION_NOT_FOUND", "App0 partition not found!");
+                break;
+
+            case BootPartition::BOOT_SET_FAILED:
+                sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "BOOT_SET_FAILED", "Failed to set app0 partition as boot partition!");
+                break;
+
+            case BootPartition::BOOT_UNKNOWN_ERROR:
+                sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "BOOT_UNKNOWN_ERROR", "Cannot switch to app0 partition. Error unknown!");
+                break;
+            }
         }
     }
 }

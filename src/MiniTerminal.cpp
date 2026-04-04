@@ -299,15 +299,27 @@ void MiniTerminal::cmdGetIPAddress(const char* par)
 
 void MiniTerminal::cmdActivateApp(const char* par)
 {
-    NOT_USED(par);
+    bool isSuccessful = true;
 
-    if (BootPartition::BOOT_SUCCESS != BootPartition::setApp0())
+    if (0 != strcmp(par, "force"))
     {
-        writeError();
+        if (false == BootPartition::isFsMountable())
+        {
+            writeError("Filesystem partition is not mountable! Cannot activate app0 partition.\n");
+            isSuccessful = false;
+        }
     }
-    else
+
+    if (true == isSuccessful)
     {
-        writeSuccessful();
+        if (BootPartition::BOOT_SUCCESS != BootPartition::setApp0())
+        {
+            writeError();
+        }
+        else
+        {
+            writeSuccessful();
+        }
     }
 }
 
