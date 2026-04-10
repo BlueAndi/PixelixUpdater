@@ -40,10 +40,6 @@
 #include <esp_partition.h>
 #include <LittleFS.h>
 
-extern "C" {
-#include "esp_littlefs.h"
-}
-
 /******************************************************************************
  * Compiler Switches
  *****************************************************************************/
@@ -59,9 +55,6 @@ extern "C" {
 /******************************************************************************
  * Prototypes
  *****************************************************************************/
-
-static String      getEspChipId();
-static const char* getFlashChipMode();
 
 /******************************************************************************
  * Local Variables
@@ -145,30 +138,11 @@ bool BootPartition::isFsMountable()
     }
     else
     {
-        uint32_t    flashId      = 0U;
-        uint32_t    flashSize    = 0U;
-        const char* littleFsRepo = "https://github.com/joltwallet/esp_littlefs/releases/tag/v" ESP_LITTLEFS_VERSION_NUMBER;
-
         ESP_LOGI(LOG_TAG, "LittleFS partition found.");
-
-        ESP_LOGI(LOG_TAG, "ESP chip id      : %s", getEspChipId().c_str());
-        ESP_LOGI(LOG_TAG, "ESP type         : %s", CONFIG_IDF_TARGET);
-        ESP_LOGI(LOG_TAG, "ESP chip rev.    : %u", ESP.getChipRevision());
-        ESP_LOGI(LOG_TAG, "ESP cpu freq.    : %u MHz", ESP.getCpuFreqMHz());
-        ESP_LOGI(LOG_TAG, "Flash chip mode  : %s", getFlashChipMode());
-        ESP_LOGI(LOG_TAG, "Flash chip speed : %u", ESP.getFlashChipSpeed());
-        ESP_LOGI(LOG_TAG, "Flash chip size  : 0x%08X byte", ESP.getFlashChipSize());
-        ESP_LOGI(LOG_TAG, "Flash freq.      : %u MHz", ESP.getFlashChipSpeed() / (1000U * 1000U));
-        ESP_LOGI(LOG_TAG, "ESP SDK version  : %s", ESP.getSdkVersion());
-
-        ESP_LOGI(LOG_TAG, "FS type          : %s", (ESP_PARTITION_SUBTYPE_DATA_LITTLEFS == partition->subtype) ? "LittleFS" : "SPIFFS");
-        ESP_LOGI(LOG_TAG, "FS label         : %s", partition->label);
-        ESP_LOGI(LOG_TAG, "FS address       : 0x%08X", partition->address);
-        ESP_LOGI(LOG_TAG, "FS size          : 0x%08X", partition->size);
-        ESP_LOGI(LOG_TAG, "FS encrypted     : %s", (partition->encrypted) ? "yes" : "no");
-        ESP_LOGI(LOG_TAG, "FS read-only     : %s", (partition->readonly) ? "yes" : "no");
-        ESP_LOGI(LOG_TAG, "LittleFS version : %s", ESP_LITTLEFS_VERSION_NUMBER);
-        ESP_LOGI(LOG_TAG, "LittleFS link    : %s", littleFsRepo);
+        ESP_LOGI(LOG_TAG, "FS label     : %s", partition->label);
+        ESP_LOGI(LOG_TAG, "FS address   : 0x%08X", partition->address);
+        ESP_LOGI(LOG_TAG, "FS size      : 0x%08X", partition->size);
+        ESP_LOGI(LOG_TAG, "FS encrypted : %s", (partition->encrypted) ? "yes" : "no");
 
         if (false == LittleFS.begin(FORMAT_ON_FAIL, BASE_PATH, MAX_OPEN_FILES, LABEL_LITTLEFS))
         {
@@ -187,68 +161,3 @@ bool BootPartition::isFsMountable()
 /******************************************************************************
  * Local Functions
  *****************************************************************************/
-
-/**
- * Get ESP chip id.
- *
- * @return ESP chip id
- */
-static String getEspChipId()
-{
-    String   result;
-    uint64_t chipId   = ESP.getEfuseMac();
-    uint32_t highPart = (chipId >> 32U) & 0x0000ffffU;
-    uint32_t lowPart  = (chipId >> 0U) & 0xffffffffU;
-    char     chipIdStr[13];
-
-    (void)snprintf(chipIdStr, sizeof(chipIdStr) / sizeof(chipIdStr[0]), "%04X%08X", highPart, lowPart);
-
-    result = chipIdStr;
-
-    return result;
-}
-
-/**
- * Get the flash chip mode as string for logging purposes.
- *
- * @return Flash chip mode as string.
- */
-static const char* getFlashChipMode()
-{
-    const char* result = "UNKNOWN";
-
-    switch (ESP.getFlashChipMode())
-    {
-    case FM_QIO:
-        result = "QUIO";
-        break;
-
-    case FM_QOUT:
-        result = "QOUT";
-        break;
-
-    case FM_DIO:
-        result = "DIO";
-        break;
-
-    case FM_DOUT:
-        result = "DOUT";
-        break;
-
-    case FM_FAST_READ:
-        result = "FAST_READ";
-        break;
-
-    case FM_SLOW_READ:
-        result = "SLOW_READ";
-        break;
-
-    case FM_UNKNOWN:
-        /* fallthrough */
-
-    default:
-        break;
-    }
-
-    return result;
-}

@@ -39,6 +39,7 @@
 #include <DNSServer.h>
 #include <esp_log.h>
 #include <Settings.h>
+#include <esp_littlefs.h>
 
 #include "MyWebServer.h"
 #include "MiniTerminal.h"
@@ -78,16 +79,18 @@ typedef enum
 static int logVprintf(const char* format, va_list arg);
 #endif /* ARDUINO_USB_CDC_ON_BOOT */
 
-static void appendDeviceUniqueId(String& deviceUniqueId);
-static void getChipId(String& chipId);
-static void stateMachine();
-static void stateInit();
-static void stateStaSetup();
-static void stateStaConnecting();
-static void stateStaConnected();
-static void stateApSetup();
-static void stateApUp();
-static void stateError();
+static void        appendDeviceUniqueId(String& deviceUniqueId);
+static void        getChipId(String& chipId);
+static void        stateMachine();
+static void        stateInit();
+static void        stateStaSetup();
+static void        stateStaConnecting();
+static void        stateStaConnected();
+static void        stateApSetup();
+static void        stateApUp();
+static void        stateError();
+static String      getEspChipId();
+static const char* getFlashChipMode();
 
 /******************************************************************************
  * Variables
@@ -169,8 +172,9 @@ static MiniTerminal gMiniTerminal(Serial);
  */
 void setup()
 {
-    Settings& settings = Settings::getInstance();
-    String    hostname;
+    Settings&   settings = Settings::getInstance();
+    String      hostname;
+    const char* littleFsRepo = "https://github.com/joltwallet/esp_littlefs/releases/tag/v" ESP_LITTLEFS_VERSION_NUMBER;
 
     /* Setup serial interface */
     Serial.begin(SERIAL_BAUDRATE);
@@ -217,10 +221,21 @@ void setup()
 
     appendDeviceUniqueId(hostname);
 
-    ESP_LOGI(LOG_TAG, "Target: %s", PIO_ENV);
-    ESP_LOGI(LOG_TAG, "Version: %s", VERSION);
-    ESP_LOGI(LOG_TAG, "Hostname: %s", hostname.c_str());
-    ESP_LOGI(LOG_TAG, "Partition: Factory");
+    ESP_LOGI(LOG_TAG, "Target           : %s", PIO_ENV);
+    ESP_LOGI(LOG_TAG, "Version          : %s", VERSION);
+    ESP_LOGI(LOG_TAG, "Hostname         : %s", hostname.c_str());
+    ESP_LOGI(LOG_TAG, "Partition        : Factory");
+    ESP_LOGI(LOG_TAG, "ESP chip id      : %s", getEspChipId().c_str());
+    ESP_LOGI(LOG_TAG, "ESP type         : %s", CONFIG_IDF_TARGET);
+    ESP_LOGI(LOG_TAG, "ESP chip rev.    : %u", ESP.getChipRevision());
+    ESP_LOGI(LOG_TAG, "ESP cpu freq.    : %u MHz", ESP.getCpuFreqMHz());
+    ESP_LOGI(LOG_TAG, "Flash chip mode  : %s", getFlashChipMode());
+    ESP_LOGI(LOG_TAG, "Flash chip speed : %u", ESP.getFlashChipSpeed());
+    ESP_LOGI(LOG_TAG, "Flash chip size  : 0x%08X byte", ESP.getFlashChipSize());
+    ESP_LOGI(LOG_TAG, "Flash freq.      : %u MHz", ESP.getFlashChipSpeed() / (1000U * 1000U));
+    ESP_LOGI(LOG_TAG, "ESP SDK version  : %s", ESP.getSdkVersion());
+    ESP_LOGI(LOG_TAG, "LittleFS version : %s", ESP_LITTLEFS_VERSION_NUMBER);
+    ESP_LOGI(LOG_TAG, "LittleFS link    : %s", littleFsRepo);
 
     /* Start wifi */
     if (false == WiFi.mode(WIFI_STA))
@@ -605,4 +620,69 @@ static void stateApUp()
 static void stateError()
 {
     /* Nothing to do. */
+}
+
+/**
+ * Get ESP chip id.
+ *
+ * @return ESP chip id
+ */
+static String getEspChipId()
+{
+    String   result;
+    uint64_t chipId   = ESP.getEfuseMac();
+    uint32_t highPart = (chipId >> 32U) & 0x0000ffffU;
+    uint32_t lowPart  = (chipId >> 0U) & 0xffffffffU;
+    char     chipIdStr[13];
+
+    (void)snprintf(chipIdStr, sizeof(chipIdStr) / sizeof(chipIdStr[0]), "%04X%08X", highPart, lowPart);
+
+    result = chipIdStr;
+
+    return result;
+}
+
+/**
+ * Get the flash chip mode as string for logging purposes.
+ *
+ * @return Flash chip mode as string.
+ */
+static const char* getFlashChipMode()
+{
+    const char* result = "UNKNOWN";
+
+    switch (ESP.getFlashChipMode())
+    {
+    case FM_QIO:
+        result = "QUIO";
+        break;
+
+    case FM_QOUT:
+        result = "QOUT";
+        break;
+
+    case FM_DIO:
+        result = "DIO";
+        break;
+
+    case FM_DOUT:
+        result = "DOUT";
+        break;
+
+    case FM_FAST_READ:
+        result = "FAST_READ";
+        break;
+
+    case FM_SLOW_READ:
+        result = "SLOW_READ";
+        break;
+
+    case FM_UNKNOWN:
+        /* fallthrough */
+
+    default:
+        break;
+    }
+
+    return result;
 }
