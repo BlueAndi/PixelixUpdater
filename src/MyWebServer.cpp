@@ -97,6 +97,9 @@ static String gBasicAuthUser;
 /** Basic authentication password. */
 static String gBasicAuthPassword;
 
+/** Indicates if the filesystem has been updated. */
+static bool gIsFsUpdated                   = false;
+
 /** Firmware binary size HTTP request header. */
 static const char FIRMWARE_SIZE_HEADER[]   = "X-File-Size-Firmware";
 
@@ -315,6 +318,7 @@ static void handleFileStart(HTTPUpload& upload)
     {
         headerXFileSize = gWebServer.header(FILESYSTEM_SIZE_HEADER);
         cmd             = U_SPIFFS;
+        gIsFsUpdated    = true;
     }
     else
     {
@@ -393,11 +397,24 @@ static void handleActivateAppPartition()
 {
     if (true == requireAuthentication())
     {
-        if (false == BootPartition::isFsMountable())
+        bool isSuccessful = true;
+
+        /* Check whether the filesystem is mountable only, if it has been updated.
+         *
+         * Because between Arduino 2.x and Tasmota Arduino 3.x the LittleFS implementation has changed,
+         * it can happen that after the filesystem is updated by the application, it is not mountable anymore
+         * by the factory LittleFS implementation.
+         */
+        if (true == gIsFsUpdated)
         {
-            sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "FS_NOT_MOUNTABLE", "Filesystem partition is not mountable. Cannot switch to app0 partition!");
+            if (false == BootPartition::isFsMountable())
+            {
+                sendErrorResponse(HttpStatus::STATUS_CODE_INTERNAL_SERVER_ERROR, "FS_NOT_MOUNTABLE", "Filesystem partition is not mountable. Cannot switch to app0 partition!");
+                isSuccessful = false;
+            }
         }
-        else
+
+        if (true == isSuccessful)
         {
             switch (BootPartition::setApp0())
             {
