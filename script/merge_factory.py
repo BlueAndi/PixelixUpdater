@@ -210,16 +210,15 @@ def replace_firmware(target, source, env): # pylint: disable=unused-argument
 
     if not os.path.exists(new_firmware_image):
         print(f"New firmware not found: {new_firmware_image}")
-        return
-    
-    if os.path.exists(old_firmware_image):
-        os.remove(old_firmware_image)
-        print(f"Removed old firmware: {old_firmware_image}")
     else:
-        print("No old firmware found to remove.")
+        if os.path.exists(old_firmware_image):
+            os.remove(old_firmware_image)
+            print(f"Removed old firmware: {old_firmware_image}")
+        else:
+            print("No old firmware found to remove.")
 
-    os.rename(new_firmware_image, old_firmware_image)
-    print("Replaced firmware successfully!")
+        os.rename(new_firmware_image, old_firmware_image)
+        print("Replaced firmware successfully!")
 
 ################################################################################
 # Main
