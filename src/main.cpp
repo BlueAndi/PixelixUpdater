@@ -1,6 +1,6 @@
 /* MIT License
  *
- * Copyright (c) 2025 Andreas Merkle <web@blue-andi.de>
+ * Copyright (c) 2025 - 2026 Andreas Merkle <web@blue-andi.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,6 +39,7 @@
 #include <DNSServer.h>
 #include <esp_log.h>
 #include <Settings.h>
+#include <esp_littlefs.h>
 
 #include "MyWebServer.h"
 #include "MiniTerminal.h"
@@ -74,16 +75,22 @@ typedef enum
  * Prototypes
  *****************************************************************************/
 
-static void appendDeviceUniqueId(String& deviceUniqueId);
-static void getChipId(String& chipId);
-static void stateMachine();
-static void stateInit();
-static void stateStaSetup();
-static void stateStaConnecting();
-static void stateStaConnected();
-static void stateApSetup();
-static void stateApUp();
-static void stateError();
+#if ARDUINO_USB_CDC_ON_BOOT
+static int logVprintf(const char* format, va_list arg);
+#endif /* ARDUINO_USB_CDC_ON_BOOT */
+
+static void        appendDeviceUniqueId(String& deviceUniqueId);
+static void        getChipId(String& chipId);
+static void        stateMachine();
+static void        stateInit();
+static void        stateStaSetup();
+static void        stateStaConnecting();
+static void        stateStaConnected();
+static void        stateApSetup();
+static void        stateApUp();
+static void        stateError();
+static String      getEspChipId();
+static const char* getFlashChipMode();
 
 /******************************************************************************
  * Variables
@@ -165,8 +172,9 @@ static MiniTerminal gMiniTerminal(Serial);
  */
 void setup()
 {
-    Settings& settings = Settings::getInstance();
-    String    hostname;
+    Settings&   settings = Settings::getInstance();
+    String      hostname;
+    const char* littleFsRepo = "https://github.com/joltwallet/esp_littlefs/releases/tag/v" ESP_LITTLEFS_VERSION_NUMBER;
 
     /* Setup serial interface */
     Serial.begin(SERIAL_BAUDRATE);
@@ -177,11 +185,24 @@ void setup()
 #endif /* ARDUINO_USB_CDC_ON_BOOT */
 #endif /* ARDUINO_USB_MODE */
 
+#ifdef CONFIG_PIN_BUZZER_OUT
+    /* Disable buzzer. */
+    pinMode(CONFIG_PIN_BUZZER_OUT, OUTPUT);
+    digitalWrite(CONFIG_PIN_BUZZER_OUT, LOW);
+#endif /* CONFIG_PIN_BUZZER_OUT */
+
     /* Ensure a distance between the boot mode message and the first log message.
      * Otherwise the first log message appears in the same line than the last
      * boot mode message.
      */
     Serial.println("\n");
+
+#if ARDUINO_USB_CDC_ON_BOOT
+
+    /* Route ESP-IDF logging to Serial, because USB CDC is used on boot. */
+    esp_log_set_vprintf(&logVprintf);
+
+#endif /* ARDUINO_USB_CDC_ON_BOOT */
 
     /* Set severity for esp logging system. */
     esp_log_level_set("*", CONFIG_ESP_LOG_SEVERITY);
@@ -189,7 +210,7 @@ void setup()
     /* Load hostname from settings. */
     if (false == settings.open(true))
     {
-        hostname = "PixelixUpdater";
+        hostname = settings.getHostname().getDefault();
     }
     else
     {
@@ -200,13 +221,35 @@ void setup()
 
     appendDeviceUniqueId(hostname);
 
-    ESP_LOGI(LOG_TAG, "Target: %s", PIO_ENV);
-    ESP_LOGI(LOG_TAG, "Version: %s", VERSION);
-    ESP_LOGI(LOG_TAG, "Hostname: %s", hostname.c_str());
-    ESP_LOGI(LOG_TAG, "Partition: Factory");
+    ESP_LOGI(LOG_TAG, "Target           : %s", PIO_ENV);
+    ESP_LOGI(LOG_TAG, "Version          : %s", VERSION);
+    ESP_LOGI(LOG_TAG, "Hostname         : %s", hostname.c_str());
+    ESP_LOGI(LOG_TAG, "Partition        : Factory");
+    ESP_LOGI(LOG_TAG, "ESP chip id      : %s", getEspChipId().c_str());
+    ESP_LOGI(LOG_TAG, "ESP type         : %s", CONFIG_IDF_TARGET);
+    ESP_LOGI(LOG_TAG, "ESP chip rev.    : %u", ESP.getChipRevision());
+    ESP_LOGI(LOG_TAG, "ESP cpu freq.    : %u MHz", ESP.getCpuFreqMHz());
+    ESP_LOGI(LOG_TAG, "Flash chip mode  : %s", getFlashChipMode());
+    ESP_LOGI(LOG_TAG, "Flash chip speed : %u", ESP.getFlashChipSpeed());
+    ESP_LOGI(LOG_TAG, "Flash chip size  : 0x%08X byte", ESP.getFlashChipSize());
+    ESP_LOGI(LOG_TAG, "Flash freq.      : %u MHz", ESP.getFlashChipSpeed() / (1000U * 1000U));
+    ESP_LOGI(LOG_TAG, "ESP SDK version  : %s", ESP.getSdkVersion());
+    ESP_LOGI(LOG_TAG, "LittleFS version : %s", ESP_LITTLEFS_VERSION_NUMBER);
+    ESP_LOGI(LOG_TAG, "LittleFS link    : %s", littleFsRepo);
 
     /* Start wifi */
-    (void)WiFi.mode(WIFI_STA);
+    if (false == WiFi.mode(WIFI_STA))
+    {
+        ESP_LOGE(LOG_TAG, "Failed to set WiFi mode");
+    }
+    else if (false == WiFi.setHostname(hostname.c_str()))
+    {
+        ESP_LOGE(LOG_TAG, "Failed to set WiFi hostname");
+    }
+    else
+    {
+        ESP_LOGI(LOG_TAG, "WiFi started in station mode");
+    }
 
     MyWebServer::begin();
 }
@@ -222,8 +265,10 @@ void loop()
 
     if (true == gMiniTerminal.isRestartRequested())
     {
+        const uint32_t RESTART_DELAY_MS = 100U;
+
         /* Give some time to send the response before restarting. */
-        delay(100U);
+        delay(RESTART_DELAY_MS);
 
         /* Disconnect WiFi graceful before restart. */
         if (WIFI_MODE_AP == WiFi.getMode())
@@ -247,6 +292,48 @@ void loop()
 /******************************************************************************
  * Local functions
  *****************************************************************************/
+
+#if ARDUINO_USB_CDC_ON_BOOT
+
+/**
+ * Custom vprintf function for ESP-IDF logging.
+ * Routes all log output to USB Serial (Serial).
+ *
+ * @param[in] format    Format string
+ * @param[in] arg       Variable argument list
+ *
+ * @return Number of characters written
+ */
+static int logVprintf(const char* format, va_list arg)
+{
+    int result = 0;
+
+    if (nullptr != format)
+    {
+        char buffer[256];
+        int  length = vsnprintf(buffer, sizeof(buffer), format, arg);
+
+        if (0 < length)
+        {
+            /* Ensure '\0' termination */
+            if (sizeof(buffer) <= static_cast<size_t>(length))
+            {
+                buffer[sizeof(buffer) - 1] = '\0';
+                result                     = sizeof(buffer) - 1;
+            }
+            else
+            {
+                result = length;
+            }
+
+            Serial.print(buffer);
+        }
+    }
+
+    return result;
+}
+
+#endif /* ARDUINO_USB_CDC_ON_BOOT */
 
 /**
  * Append device unique ID to string.
@@ -533,4 +620,69 @@ static void stateApUp()
 static void stateError()
 {
     /* Nothing to do. */
+}
+
+/**
+ * Get ESP chip id.
+ *
+ * @return ESP chip id
+ */
+static String getEspChipId()
+{
+    String   result;
+    uint64_t chipId   = ESP.getEfuseMac();
+    uint32_t highPart = (chipId >> 32U) & 0x0000ffffU;
+    uint32_t lowPart  = (chipId >> 0U) & 0xffffffffU;
+    char     chipIdStr[13];
+
+    (void)snprintf(chipIdStr, sizeof(chipIdStr) / sizeof(chipIdStr[0]), "%04X%08X", highPart, lowPart);
+
+    result = chipIdStr;
+
+    return result;
+}
+
+/**
+ * Get the flash chip mode as string for logging purposes.
+ *
+ * @return Flash chip mode as string.
+ */
+static const char* getFlashChipMode()
+{
+    const char* result = "UNKNOWN";
+
+    switch (ESP.getFlashChipMode())
+    {
+    case FM_QIO:
+        result = "QUIO";
+        break;
+
+    case FM_QOUT:
+        result = "QOUT";
+        break;
+
+    case FM_DIO:
+        result = "DIO";
+        break;
+
+    case FM_DOUT:
+        result = "DOUT";
+        break;
+
+    case FM_FAST_READ:
+        result = "FAST_READ";
+        break;
+
+    case FM_SLOW_READ:
+        result = "SLOW_READ";
+        break;
+
+    case FM_UNKNOWN:
+        /* fallthrough */
+
+    default:
+        break;
+    }
+
+    return result;
 }

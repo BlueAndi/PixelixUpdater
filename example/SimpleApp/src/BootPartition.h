@@ -25,8 +25,8 @@
     DESCRIPTION
 *******************************************************************************/
 /**
- * @file   MyWebServer.h
- * @brief  The web server with its pages and handlers.
+ * @file   BootPartition.h
+ * @brief  Boot partition handling
  * @author Andreas Merkle <web@blue-andi.de>
  *
  * @addtogroup UTILITIES
@@ -34,8 +34,8 @@
  * @{
  */
 
-#ifndef MY_WEBSERVER_H
-#define MY_WEBSERVER_H
+#ifndef BOOT_PARTITION_H
+#define BOOT_PARTITION_H
 
 /******************************************************************************
  * Compile Switches
@@ -46,6 +46,12 @@
  *****************************************************************************/
 #include <stdint.h>
 
+/**
+ * Boot partition related functions.
+ */
+namespace BootPartition
+{
+
 /******************************************************************************
  * Macros
  *****************************************************************************/
@@ -54,27 +60,31 @@
  * Types and Classes
  *****************************************************************************/
 
+/**
+ * Result of setting boot partition.
+ */
+typedef enum
+{
+    BOOT_SUCCESS,               /**< Boot partition set successfully */
+    BOOT_PARTITION_NOT_FOUND,   /**< Boot partition not found */
+    BOOT_SET_FAILED,            /**< Failed to set boot partition */
+    BOOT_UNKNOWN_ERROR          /**< Unknown error occurred */
+
+} BootPartitionResult;
+
 /******************************************************************************
  * Functions
  *****************************************************************************/
 
 /**
- * Web server related functions.
+ * Set the factory partition active to be the next boot partition.
+ *
+ * @return BootPartitionResult indicating wether the factory partition was set as boot partition successfully or not.
  */
-namespace MyWebServer
-{
-    /**
-     * Setup the web server.
-     */
-    void begin();
+BootPartitionResult setFactory();
 
-    /**
-     * Handle client requests.
-     */
-    void handleClient();
+} /* namespace BootPartition */
 
-} /* namespace MyWebServer */
-
-#endif /* MY_WEBSERVER_H */
+#endif /* BOOT_PARTITION_H */
 
 /** @} */

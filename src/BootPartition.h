@@ -1,6 +1,6 @@
 /* MIT License
  *
- * Copyright (c) 2019 - 2025 Andreas Merkle <web@blue-andi.de>
+ * Copyright (c) 2019 - 2026 Andreas Merkle <web@blue-andi.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -65,10 +65,10 @@ namespace BootPartition
  */
 typedef enum
 {
-    BOOT_SUCCESS,
-    BOOT_PARTITION_NOT_FOUND,
-    BOOT_SET_FAILED,
-    BOOT_UNKNOWN_ERROR
+    BOOT_SUCCESS,             /**< App0 partition was set as boot partition successfully. */
+    BOOT_PARTITION_NOT_FOUND, /**< App0 partition was not found. */
+    BOOT_SET_FAILED,          /**< Failed to set App0 partition as boot partition. */
+    BOOT_UNKNOWN_ERROR        /**< An unknown error occurred. */
 
 } BootPartitionResult;
 
@@ -82,6 +82,13 @@ typedef enum
  * @return BootPartitionResult indicating wether application partition 0 was set as boot partition successfully or not.
  */
 BootPartitionResult setApp0();
+
+/**
+ * Check if the filesystem partition is mountable.
+ * 
+ * @return true if the filesystem partition is mountable, false otherwise.
+ */
+bool isFsMountable();
 
 } /* namespace BootPartition */
 

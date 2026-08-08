@@ -1,6 +1,6 @@
 /* MIT License
  *
- * Copyright (c) 2019 - 2025 Andreas Merkle <web@blue-andi.de>
+ * Copyright (c) 2019 - 2026 Andreas Merkle <web@blue-andi.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -152,8 +152,8 @@ void MiniTerminal::process()
         else if (INPUT_BUFFER_SIZE > (m_writeIndex + 1U))
         {
             /* Valid character? */
-            if ((' ' <= currentChar) &&
-                ('~' >= currentChar))
+            if ((ASCII_SP <= currentChar) &&
+                (ASCII_TILDE >= currentChar))
             {
                 m_input[m_writeIndex] = currentChar;
                 ++m_writeIndex;
@@ -199,12 +199,23 @@ void MiniTerminal::executeCommand(const char* cmdLine)
 
     for (idx = 0U; ARRAY_ELEMENT_COUNT(m_cmdTable) > idx; ++idx)
     {
-        const CmdTableEntry entry = m_cmdTable[idx];
-        const size_t        len   = strlen(entry.cmdStr);
+        const CmdTableEntry entry  = m_cmdTable[idx];
+        const size_t        cmdLen = strlen(entry.cmdStr);
 
-        if (0 == strncmp(cmdLine, entry.cmdStr, len))
+        if (0 == strncmp(cmdLine, entry.cmdStr, cmdLen))
         {
-            (this->*entry.handler)(&cmdLine[len]);
+            const char* par = &cmdLine[cmdLen];
+
+            /* Skip leading whitespace. */
+            while ((ASCII_SP == *par) || (ASCII_TAB == *par))
+            {
+                ++par;
+            }
+            /* NOTE: Allow empty parameters to be able to clear settings values. */
+
+            /* Execute the command with its parameters (optional). */
+            (this->*entry.handler)(par);
+
             break;
         }
     }
@@ -228,11 +239,7 @@ void MiniTerminal::cmdWriteWifiPassphrase(const char* par)
     {
         Settings& settings = Settings::getInstance();
 
-        if (' ' != par[0])
-        {
-            writeError("Missing space after command.\n");
-        }
-        else if (false == settings.open(false))
+        if (false == settings.open(false))
         {
             writeError();
         }
@@ -240,7 +247,7 @@ void MiniTerminal::cmdWriteWifiPassphrase(const char* par)
         {
             KeyValueString& wifiPassword = settings.getWifiPassphrase();
 
-            wifiPassword.setValue(&par[1]); /* Skip leading space */
+            wifiPassword.setValue(par);
             settings.close();
 
             writeSuccessful();
@@ -254,11 +261,7 @@ void MiniTerminal::cmdWriteWifiSSID(const char* par)
     {
         Settings& settings = Settings::getInstance();
 
-        if (' ' != par[0])
-        {
-            writeError("Missing space after command.\n");
-        }
-        else if (false == settings.open(false))
+        if (false == settings.open(false))
         {
             writeError();
         }
@@ -266,7 +269,7 @@ void MiniTerminal::cmdWriteWifiSSID(const char* par)
         {
             KeyValueString& wifiSSID = settings.getWifiSSID();
 
-            wifiSSID.setValue(&par[1]); /* Skip leading space */
+            wifiSSID.setValue(par);
             settings.close();
 
             writeSuccessful();
@@ -298,9 +301,14 @@ void MiniTerminal::cmdActivateApp(const char* par)
 {
     NOT_USED(par);
 
-    (void)BootPartition::setApp0();
-
-    writeSuccessful();
+    if (BootPartition::BOOT_SUCCESS != BootPartition::setApp0())
+    {
+        writeError();
+    }
+    else
+    {
+        writeSuccessful();
+    }
 }
 
 void MiniTerminal::cmdHelp(const char* par)

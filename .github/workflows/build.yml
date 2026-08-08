@@ -38,10 +38,10 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job.
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6.0.1
 
     - name: Cache pip
-      uses: actions/cache@v4
+      uses: actions/cache@v5.0.3
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -49,13 +49,13 @@ jobs:
           ${{ runner.os }}-pip-
 
     - name: Cache PlatformIO
-      uses: actions/cache@v4
+      uses: actions/cache@v5.0.3
       with:
         path: ~/.platformio
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6.2.0
       with:
         python-version: '3.11'
 
@@ -68,7 +68,7 @@ jobs:
       run: platformio run --environment ${{ matrix.environment }}
 
     - name: Deploy ${{ matrix.environment }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6.0.0
       with:
         name: ${{ matrix.environment }}
         path: |
@@ -82,7 +82,7 @@ jobs:
     needs: [build]
     steps:
     - name: Deploy artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7.0.0
       with:
         path: ${{ github.workspace }}/artifacts
 
@@ -95,7 +95,7 @@ jobs:
       working-directory: ${{ github.workspace }}/artifacts
 
     - name: Deploy ${{ github.event.repository.name }}-artifacts.zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6.0.0
       with:
         name: ${{ github.event.repository.name }}-artifacts.zip
         path: |
@@ -124,10 +124,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6.0.1
 
     - name: Cache pip
-      uses: actions/cache@v4
+      uses: actions/cache@v5.0.3
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -135,13 +135,13 @@ jobs:
           ${{ runner.os }}-pip-
 
     - name: Cache PlatformIO
-      uses: actions/cache@v4
+      uses: actions/cache@v5.0.3
       with:
         path: ~/.platformio
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6.2.0
       with:
         python-version: '3.11'
     
@@ -160,10 +160,10 @@ jobs:
     needs: intro
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6.0.1
 
     - name: Cache pip
-      uses: actions/cache@v4
+      uses: actions/cache@v5.0.3
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -171,13 +171,13 @@ jobs:
           ${{ runner.os }}-pip-
 
     - name: Cache PlatformIO
-      uses: actions/cache@v4
+      uses: actions/cache@v5.0.3
       with:
         path: ~/.platformio
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6.2.0
       with:
         python-version: '3.11'
   
@@ -187,7 +187,7 @@ jobs:
         pip install --upgrade platformio
 
     - name: Set up graphviz
-      uses: ts-graphviz/setup-graphviz@v2
+      uses: ts-graphviz/setup-graphviz@v2.0.2
 
     - name: Set up doxygen and generate documentation
       uses: mattnotmitt/doxygen-action@v1.12.0
