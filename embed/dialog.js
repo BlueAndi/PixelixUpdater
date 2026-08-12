@@ -1,105 +1,88 @@
-var dialog = window.dialog || {};
+"use strict";
 
-dialog._show = function(title, message, isBlocking) {
-    return new Promise(function(resolve, reject) {
+/* Attach the namespace explicitly to window: in a classic (non-module) script a
+ * top-level "const" does NOT create a global property, but every page relies on
+ * dialog being globally available. */
+const dialog = (window.dialog = window.dialog || {});
 
-        var waitOnClick = false;
+dialog._getModal = function () {
+    return bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDialog"));
+};
 
-        if (("boolean" === typeof isBlocking) &&
-            (true == isBlocking)) {
-            waitOnClick = true;
-        }
+dialog._createCloseButton = function () {
+    const button = document.createElement("button");
 
-        $("#dialogTitle").text(title);
-        $("#dialogBody").html(message);
+    button.type = "button";
+    button.className = "btn btn-secondary";
+    button.setAttribute("data-bs-dismiss", "modal");
+    button.textContent = "Ok";
 
-        $("#modalDialog").on("shown.bs.modal", function() {
-            $("#modalDialog").off("shown.bs.modal");
+    return button;
+};
 
-            if (false === waitOnClick) {
-                resolve();
-            }
-        });
+dialog._prepare = function (headerClass, footerButtons) {
+    const header = document.getElementById("dialogHeader");
+    const footer = document.getElementById("dialogFooter");
 
-        $("#modalDialog").modal("show");
+    header.className = headerClass;
+    footer.replaceChildren(...footerButtons);
+};
 
-        if (true === waitOnClick) {
-            $("#modalDialog .btn-secondary").click(function() {
-                resolve();
+dialog._show = function (title, message, isBlocking) {
+    return new Promise((resolve) => {
+        const modalElement = document.getElementById("modalDialog");
+        const waitOnClick = (isBlocking === true);
+
+        document.getElementById("dialogTitle").textContent = title;
+        document.getElementById("dialogBody").innerHTML = message;
+
+        if (waitOnClick === false) {
+            modalElement.addEventListener("shown.bs.modal", () => resolve(), { once: true });
+        } else {
+            /* Blocking: resolve on any secondary button. */
+            modalElement.querySelectorAll(".btn-secondary").forEach((button) => {
+                button.addEventListener("click", () => resolve(), { once: true });
             });
         }
+
+        dialog._getModal().show();
     });
-}
+};
 
-dialog.hide = function() {
-    return new Promise(function(resolve, reject) {
+dialog.hide = function () {
+    return new Promise((resolve) => {
+        const modalElement = document.getElementById("modalDialog");
 
-        $("#modalDialog").on("hidden.bs.modal", function() {
-            $("#modalDialog").off("hidden.bs.modal");
-            resolve();
-        });
+        modalElement.addEventListener("hidden.bs.modal", () => resolve(), { once: true });
 
-        $("#modalDialog").modal("hide");
+        dialog._getModal().hide();
     });
-}
+};
 
-dialog.showInfo = function(message, isBlocking) {
-    var $btnClose = $("<button>")
-                    .attr("type", "button")
-                    .attr("class", "btn btn-secondary")
-                    .attr("data-bs-dismiss", "modal")
-                    .text("Ok")
-
-    $("#dialogHeader").removeClass();
-    $("#dialogFooter").empty();
-
-    $("#dialogHeader").addClass("modal-header bg-primary text-white");
-    $("#dialogFooter").append($btnClose);
+dialog.showInfo = function (message, isBlocking) {
+    dialog._prepare("modal-header bg-primary text-white", [dialog._createCloseButton()]);
 
     return dialog._show("Info", message, isBlocking);
-}
+};
 
-dialog.showWarning = function(message, isBlocking) {
-    var $btnClose = $("<button>")
-                    .attr("type", "button")
-                    .attr("class", "btn btn-secondary")
-                    .attr("data-bs-dismiss", "modal")
-                    .text("Ok")
-
-    $("#dialogHeader").removeClass();
-    $("#dialogFooter").empty();
-
-    $("#dialogHeader").addClass("modal-header bg-warning");
-    $("#dialogFooter").append($btnClose);
+dialog.showWarning = function (message, isBlocking) {
+    dialog._prepare("modal-header bg-warning", [dialog._createCloseButton()]);
 
     return dialog._show("Warning", message, isBlocking);
-}
+};
 
-dialog.showError = function(message, isBlocking) {
-    var $btnClose = $("<button>")
-                    .attr("type", "button")
-                    .attr("class", "btn btn-secondary")
-                    .attr("data-bs-dismiss", "modal")
-                    .text("Ok")
-
-    $("#dialogHeader").removeClass();
-    $("#dialogFooter").empty();
-
-    $("#dialogHeader").addClass("modal-header bg-danger text-white");
-    $("#dialogFooter").append($btnClose);
+dialog.showError = function (message, isBlocking) {
+    dialog._prepare("modal-header bg-danger text-white", [dialog._createCloseButton()]);
 
     return dialog._show("Error", message, isBlocking);
-}
+};
 
-dialog.show = function(title, message, isBlocking) {
-    $("#dialogHeader").removeClass();
-    $("#dialogFooter").empty();
-
-    $("#dialogHeader").addClass("modal-header bg-dark text-white");
+dialog.show = function (title, message, isBlocking) {
+    dialog._prepare("modal-header bg-dark text-white", []);
 
     return dialog._show(title, message, isBlocking);
-}
+};
 
-dialog.updateMessage = function(message) {
-    $("#dialogBody").html(message);
+dialog.updateMessage = function (message) {
+    document.getElementById("dialogBody").innerHTML = message;
 };

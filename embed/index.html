@@ -97,8 +97,7 @@
             </div>
         </footer>
 
-        <!-- jQuery, and Bootstrap JS bundle -->
-        <script type="text/javascript" src="jquery-3.7.1.slim.min.js"></script>
+        <!-- Bootstrap JS bundle -->
         <script type="text/javascript" src="bootstrap.bundle.min.js"></script>
         <!-- Pixelix utilities -->
         <script type="text/javascript" src="utils.js"></script>
@@ -106,187 +105,213 @@
 
         <!-- Custom javascript -->
         <script>
+            "use strict";
+
+            /* Id of the upload progress bar. */
+            const PROGRESS_BAR_ID = "progressBar";
+
+            /* Delay in s before the page is reloaded after the app partition was activated. */
+            const RELOAD_DELAY_S = 10;
+
+            /* Ids of the file inputs. */
+            const FILE_INPUT_IDS = ["inputFirmwareFile", "inputFilesystemFile"];
 
             /* Disable all UI elements. */
             function disableUI() {
-                $("main :button").prop("disabled", true);
+                document.querySelectorAll("main button").forEach((button) => {
+                    button.disabled = true;
+                });
             }
 
             /* Enable all UI elements. */
             function enableUI() {
-                $("main :button").prop("disabled", false);
+                document.querySelectorAll("main button").forEach((button) => {
+                    button.disabled = false;
+                });
+            }
+
+            /* Get the human readable error text of a failed request response. */
+            function getErrorText(rsp) {
+                const message = (rsp && rsp.error && rsp.error.message) ? rsp.error.message : "Unknown error";
+                const code = (rsp && rsp.error && rsp.error.code) ? ` (${rsp.error.code})` : "";
+
+                return `${message}${code}`;
             }
 
             function updateProgressBar(id, progress) {
-                $("#" + id).css("width", progress + "%").attr("aria-valuenow", progress);
-                $("#" + id).text(progress + "%");
+                const progressBar = document.getElementById(id);
+
+                if (null !== progressBar) {
+                    progressBar.style.width = `${progress}%`;
+                    progressBar.setAttribute("aria-valuenow", progress);
+                    progressBar.textContent = `${progress}%`;
+                }
             }
 
             function updateProgressUpdate(evt) {
-                var progress = 0;
+                let progress = 0;
 
                 if (true === evt.lengthComputable) {
                     progress = (evt.loaded * 100 / evt.total).toFixed();
                 }
 
-                updateProgressBar("progressBar", progress);
+                updateProgressBar(PROGRESS_BAR_ID, progress);
             }
 
-            /* Request app partition activation. */
-            function sendActivateAppPartition() {
-                var intervalId = 0;
-                var seconds = 10;
+            /* Wait until the countdown expired or the user closed the dialog. */
+            function waitForCountdown(seconds) {
+                return new Promise((resolve) => {
+                    const btnClose = document.querySelector("#modalDialog .btn-secondary");
+                    let remaining = seconds;
 
-                disableUI();
-                
-                utils.makeRequest({
-                    method: "GET",
-                    url: "/activateAppPartition",
-                }).then(function(rsp) {
-                    return dialog.showInfo(`<p>${rsp.data.message}</p><p>Reload in ${seconds}s</p>`);
-                }).then(function() {
-                    return new Promise(function(resolve) {
-                        intervalId = setInterval(() => {
-                            if (0 < seconds) {
-                                seconds--;
-                                dialog.updateMessage(`<p>Reload in ${seconds}s</p>`);
-                            }
+                    const intervalId = setInterval(() => {
+                        --remaining;
+                        dialog.updateMessage(`<p>Reload in ${remaining}s</p>`);
 
-                            if (0 === seconds) {
-                                resolve();
-                            }
-                        }, 1000);
-
-                        $("#modalDialog .btn-secondary").click(function() {
+                        if (0 >= remaining) {
+                            clearInterval(intervalId);
                             resolve();
-                        });
-                    });
-                }).then(function() {
-                    clearInterval(intervalId);
-                    location.reload();
-                }).catch(function(rsp) {
-                    var errorMsg = rsp.error ? rsp.error.message : "Unknown error";
-                    var errorCode = rsp.error && rsp.error.code ? " (" + rsp.error.code + ")" : "";
+                        }
+                    }, 1000);
 
-                    dialog.showError("<p>Error: " + errorMsg + errorCode + "</p>")
-                    enableUI();
+                    if (null !== btnClose) {
+                        btnClose.addEventListener("click", () => {
+                            clearInterval(intervalId);
+                            resolve();
+                        }, { once: true });
+                    }
                 });
             }
 
-            /* Check if a file fits into the filesystem or firmware partition depending on the header. X-File-Size-Firmware for firmware partition and X-File-Size-Filesystem to check for the filesystem partition. */
-            function partitionSizeCheck(fileHeader, fileSize) {
-                    var headers = {};
-                    headers[fileHeader] = 0;
+            /* Request app partition activation. */
+            async function sendActivateAppPartition() {
+                disableUI();
 
-                    return utils.makeRequest({
+                try {
+                    const rsp = await utils.makeRequest({
+                        method: "GET",
+                        url: "/activateAppPartition"
+                    });
+
+                    await dialog.showInfo(`<p>${rsp.data.message}</p><p>Reload in ${RELOAD_DELAY_S}s</p>`);
+                    await waitForCountdown(RELOAD_DELAY_S);
+
+                    location.reload();
+                } catch (rsp) {
+                    dialog.showError(`<p>Error: ${getErrorText(rsp)}</p>`);
+                    enableUI();
+                }
+            }
+
+            /* Check if a file fits into the filesystem or firmware partition depending on the header. X-File-Size-Firmware for firmware partition and X-File-Size-Filesystem to check for the filesystem partition. */
+            async function partitionSizeCheck(fileHeader, fileSize) {
+                const headers = {};
+                let isFitting = false;
+
+                headers[fileHeader] = 0;
+
+                try {
+                    const rsp = await utils.makeRequest({
                         method: "GET",
                         url: "/partitionSize",
-                        headers: headers,
-                    }).then(function(rsp) {
-                        var size = rsp.data.size;
-
-                        if (fileSize > size) {
-                            if("X-File-Size-Firmware" === fileHeader) {
-                                dialog.showError("File is too big for firmware partition(ota0) of size " + size + "B!");
-                            }
-                            else if("X-File-Size-Filesystem" === fileHeader) {
-                                dialog.showError("File is too big for filesystem partition of size " + size + "B!");
-                            }
-
-                            return false;
-                        } else {
-                            return true;
-                        }
-                    }).catch(function(rsp) {
-                        var errorMsg = rsp.error ? rsp.error.message : "Unknown error";
-                        var errorCode = rsp.error && rsp.error.code ? " (" + rsp.error.code + ")" : "";
-
-                        dialog.showError("<p>Error: " + errorMsg + errorCode + "</p>");
-                        return false;
+                        headers: headers
                     });
+                    const size = rsp.data.size;
+
+                    if (fileSize > size) {
+                        if ("X-File-Size-Firmware" === fileHeader) {
+                            dialog.showError(`File is too big for firmware partition(ota0) of size ${size}B!`);
+                        }
+                        else if ("X-File-Size-Filesystem" === fileHeader) {
+                            dialog.showError(`File is too big for filesystem partition of size ${size}B!`);
+                        }
+                    }
+                    else {
+                        isFitting = true;
+                    }
+                } catch (rsp) {
+                    dialog.showError(`<p>Error: ${getErrorText(rsp)}</p>`);
                 }
 
-            function upload(inputId, fileSizeHeader) {
-                var file        = null;
-                var fileParameters  = {};
-                var fileHeaders     = {};
-                var input = document.getElementById(inputId);
+                return isFitting;
+            }
 
-                $("#progressBar").css("width", "0%").attr("aria-valuenow", 0);
+            async function upload(inputId, fileSizeHeader) {
+                const input = document.getElementById(inputId);
 
-                if(0 === input.files.length){
+                updateProgressBar(PROGRESS_BAR_ID, 0);
+
+                if (0 === input.files.length) {
                     dialog.showWarning("<p>No file selected.</p>");
                 }
-                else{
+                else {
+                    const file = input.files[0];
+                    const fileParameters = { [file.name]: file };
+                    const fileHeaders = { [fileSizeHeader]: file.size };
+
                     disableUI();
 
-                    file = input.files[0];
-                    fileParameters[file.name] = file;
-                    fileHeaders[fileSizeHeader] = file.size;
+                    const isFitting = await partitionSizeCheck(fileSizeHeader, file.size);
 
-                    partitionSizeCheck(fileSizeHeader, file.size).then(function(success) {
-                        if (success) {
-                            utils.makeRequest({
+                    if (true === isFitting) {
+                        try {
+                            const rsp = await utils.makeRequest({
                                 method: "POST",
                                 url: "/upload.html",
                                 parameter: fileParameters,
                                 headers: fileHeaders,
                                 onProgress: updateProgressUpdate
-                            }).then(function(rsp) {
-                                dialog.showInfo("<p>" + rsp.data.message + "</p>")
-                            }).catch(function(rsp) {
-                                var errorMsg = rsp.error ? rsp.error.message : "Unknown error";
-                                var errorCode = rsp.error && rsp.error.code ? " (" + rsp.error.code + ")" : "";
-
-                                dialog.showError("<p>Error: " + errorMsg + errorCode + "</p>")
-                            }).finally(function() {
-                                updateProgressBar("progressBar", 0);
-                                enableUI();
                             });
-                        } else {
-                            enableUI();
+
+                            dialog.showInfo(`<p>${rsp.data.message}</p>`);
+                        } catch (rsp) {
+                            dialog.showError(`<p>Error: ${getErrorText(rsp)}</p>`);
+                        } finally {
+                            updateProgressBar(PROGRESS_BAR_ID, 0);
                         }
-                    });
+                    }
+
+                    enableUI();
                 }
             }
 
             function triggerUpload(event) {
-                var buttonId = event.target.id
+                const buttonId = event.target.id;
 
-                if(buttonId === "buttonFirmwareUpload") {
+                if ("buttonFirmwareUpload" === buttonId) {
                     upload("inputFirmwareFile", "X-File-Size-Firmware");
                 }
-                else if(buttonId === "buttonFilesystemUpload") {
-                    upload("inputFilesystemFile", "X-File-Size-Filesystem")
+                else if ("buttonFilesystemUpload" === buttonId) {
+                    upload("inputFilesystemFile", "X-File-Size-Filesystem");
                 }
             }
 
             /* Fetch and display hostname. */
-            function fetchHostname() {
-                utils.makeRequest({
-                    method: "GET",
-                    url: "/hostname",
-                }).then(function(rsp) {
-                    $("#hostname-display").html(rsp.data.hostname);
-                }).catch(function(rsp) {
-                    $("#hostname-display").html('<i class="text-warning">Hostname unavailable</i>');
-                });
+            async function fetchHostname() {
+                const hostnameDisplay = document.getElementById("hostname-display");
+
+                try {
+                    const rsp = await utils.makeRequest({
+                        method: "GET",
+                        url: "/hostname"
+                    });
+
+                    hostnameDisplay.textContent = rsp.data.hostname;
+                } catch {
+                    hostnameDisplay.innerHTML = '<i class="text-warning">Hostname unavailable</i>';
+                }
             }
 
             /* Execute after page is ready. */
-            $(document).ready(function() {
-                $("#inputFirmwareFile").on("change", function() {
-                    var fileName = $(this).val().split("\\").pop();
-                    $(this).next(".custom-file-label").addClass("selected").html(fileName);
+            document.addEventListener("DOMContentLoaded", () => {
+                FILE_INPUT_IDS.forEach((inputId) => {
+                    const input = document.getElementById(inputId);
 
-                    updateProgressBar("progressBar", 0);
-                });
-
-                $("#inputFilesystemFile").on("change", function() {
-                    var fileName = $(this).val().split("\\").pop();
-                    $(this).next(".custom-file-label").addClass("selected").html(fileName);
-
-                    updateProgressBar("progressBar", 0);
+                    if (null !== input) {
+                        input.addEventListener("change", () => {
+                            updateProgressBar(PROGRESS_BAR_ID, 0);
+                        });
+                    }
                 });
 
                 fetchHostname();
