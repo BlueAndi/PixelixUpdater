@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(~/.platformio/**)",
+      "Write(~/.platformio/**)"
+    ],
+    "additionalDirectories": [
+      "~/.platformio"
+    ],
+    "allow": [
+      "Bash(python script/embed.py)"
+    ]
+  }
+}
